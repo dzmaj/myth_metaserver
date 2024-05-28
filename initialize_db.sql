@@ -73,8 +73,8 @@ CREATE TABLE IF NOT EXISTS `metaserver_games` (
   `deathmatch` tinyint(1) NOT NULL,
   `vtfl` tinyint(1) NOT NULL,
   `anti_clump` tinyint(1) NOT NULL,
-  `start_datetime` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
-  `end_datetime` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `start_datetime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `end_datetime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `ended_code` tinyint(4) NOT NULL,
   `duration` int(11) NOT NULL,
   `recording_file_name` varchar(256) NOT NULL,
@@ -173,9 +173,9 @@ INSERT INTO `metaserver_difficulty_levels` (`difficulty`, `difficulty_name`) VAL
 	(4, 'Legendary');
 	
 INSERT INTO `metaserver_join_room_messages` (`priority`, `guest_only`, `message`) VALUES
-	(1, 0, 'Welcome to GateOfStorms.net!'),
+	(1, 0, 'Welcome to Bagrada.net!'),
 	(100, 1, 'You are logged in as a guest, so ranked and tournament rooms are unavailable.'),
-	(101, 1, 'If you wish to create an account, please visit http://gateofstorms.net.');
+	(101, 1, 'If you wish to create an account, please visit https://bagrada.net.');
 	
 INSERT INTO `metaserver_room_types` (`room_type`, `room_type_name`) VALUES
 	(0, 'Unranked'),

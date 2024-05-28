@@ -7,7 +7,7 @@ import vibe.vibe;
 public struct MetaserverConfig
 {
     @optional string server_address = "127.0.0.1";    // NOTE: Should be set properly for any public server
-    @optional string database_connection_string = ""; // Empty = test mode!
+    @optional string database_connection_string = "mysql://metaserver:metaserver@localhost/metaserver_db"; // Empty = test mode!
 
     @optional int http_server_port = 8080;
     @optional string http_server_log_file = "";
@@ -42,7 +42,7 @@ public struct MetaserverConfig
     @optional int maximum_users_per_room = 999;
 
     @optional string recordings_path = "recordings/";
-    @optional string recordings_prefix = "";
+    @optional string recordings_prefix = "bagrada";
     @optional string recordings_ext = ".m2rec";
 
     // Host proxy

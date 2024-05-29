@@ -128,7 +128,11 @@ public class RoomServer
             sleep(client_keep_alive_period);
         }
         } catch (Exception e) {
-            //!!!!!!!!!!!!!!!
+            try {
+                log_message("Error: ", e.msg);
+            } catch (Exception e) {
+                //logging exception, not sure what else to do here, but it has to be caught for this to be nothrow
+            }
         }
         
     }

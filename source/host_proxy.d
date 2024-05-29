@@ -110,7 +110,11 @@ private class HostProxyPort
                     log_message("HostProxy: Client writer %s -> %s exception: %s",
                             host_stream.peerAddress, client_stream.peerAddress, e.msg);
                 } catch (Exception e) {
-                    //!!!
+                    try {
+                        log_message("Error: ", e.msg);
+                    } catch (Exception e) {
+                        //logging exception, not sure what else to do here, but it has to be caught for this to be nothrow
+                    }
                 }
                 
             }

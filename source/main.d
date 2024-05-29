@@ -61,7 +61,12 @@ void run_gc_cleanup()
                             GC.stats.usedSize / 1000000, GC.stats.freeSize / 1000000);
             }
         } catch (Exception e) {
-            //!!!!!!
+            try {
+                log_message("Error: ", e.msg);
+            } catch (Exception e) {
+                //logging exception, not sure what else to do here, but it has to be caught for this to be nothrow
+            }
+            
         }
         
 

@@ -455,7 +455,11 @@ class LoginServer
                 //log_message("Login: Finished cleanup (%s clients total)...", m_clients.length);
             }
         } catch (Exception e) {
-            //!!!!!
+            try {
+                log_message("Error: ", e.msg);
+            } catch (Exception e) {
+                //logging exception, not sure what else to do here, but it has to be caught for this to be nothrow
+            }
         }
         
     }

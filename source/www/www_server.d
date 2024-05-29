@@ -1,6 +1,7 @@
 import www_data_store;
 import private_api : PublicServerStatus;
 import log;
+import rest_interface;
 
 import std.stdio;
 import std.uni;
@@ -9,6 +10,7 @@ import std.algorithm.comparison;
 
 import vibe.d;
 import vibe.stream.stdio;
+import vibe.http.common;
 
 immutable string g_steam_oauth_url = "https://steamcommunity.com/openid/login";
 
@@ -84,6 +86,8 @@ public class WWWServer
 		router.get("/metaserver/", &metaserver);
 			
         router.get("/faq/", &faq);
+
+        router.registerRestInterface(new RestApiImpl(m_data_store));
 	
         debug
         {

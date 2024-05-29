@@ -444,17 +444,22 @@ class Room
 
     private void dot_info(RoomConnection caller, Nullable!RoomConnection target, string params)
     {
-        if (target.isNull)
-        {
+        if (target.isNull) {
             send_blue_message(caller, "You must first select a player by clicking on their name.");
             return;
+        } else {
+            if (target.get().client !is null) {
+            auto data = target.get().client.player_data;
+            // Use data here, knowing it's not null
+            auto message = format("'%s'|p, |iID:|p %s, |iVersion:|p %s build %s, |iIP:|p %s",                                                                          
+            data.nick_name, data.user_id, data.game_version, target.get().client.build_number, data.ip_address);
+            send_blue_message(caller, message);
+        } else {
+            // Handle the case where target.client is null
+            // (e.g., log a warning, use default values)
         }
-
-        auto data = target.client.player_data;
-        auto message = format("'%s'|p, |iID:|p %s, |iVersion:|p %s build %s, |iIP:|p %s",
-                              data.nick_name, data.user_id, data.game_version, target.client.build_number, data.ip_address);
-
-        send_blue_message(caller, message);
+        }
+        
     }
 
     private void dot_kick(RoomConnection caller, Nullable!RoomConnection target, string params)
@@ -465,12 +470,12 @@ class Room
             return;
         }
 
-        auto exception = new ClientKickedException(target.client.user_id, caller.client.user_id, params);
+        auto exception = new ClientKickedException(target.get().client.user_id, caller.client.user_id, params);
         // NOTE: if this was a "server message" instead of a separate packet we could just do the
         // server message exception below... not clear why there are two different types of packets.
-        target.send_packet(packet_type._you_just_got_blammed_sucka_packet, exception.msg);
+        target.get().send_packet(packet_type._you_just_got_blammed_sucka_packet, exception.msg);
         // Kill their connection with an exception in their task
-        target.throw_exception_in_task(exception);
+        target.get().throw_exception_in_task(exception);
     }
 
     private void dot_ban(RoomConnection caller, Nullable!RoomConnection target, string params)
@@ -495,14 +500,14 @@ class Room
             }
         }
         
-        if (target.client.guest)
+        if (target.get().client.guest)
         {
             send_blue_message(caller, "Cannot ban a guest. Kicking instead...");
         }
         else
         {
-            m_login_server.data_store.ban_user(target.client.user_id, days, reason);
-            string message = "Player '" ~ target.client.player_data.nick_name ~ "' ID " ~ to!string(target.client.user_id) ~ " banned for " ~ to!string(days) ~ " days";
+            m_login_server.data_store.ban_user(target.get().client.user_id, days, reason);
+            string message = "Player '" ~ target.get().client.player_data.nick_name ~ "' ID " ~ to!string(target.get().client.user_id) ~ " banned for " ~ to!string(days) ~ " days";
             log_message("%s: %s", m_room_name, message);
             send_blue_message(caller, message);
         }

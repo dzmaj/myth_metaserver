@@ -115,16 +115,22 @@ public class RoomServer
         m_room_info = new room_info[m_rooms.length];
         set_room_data_dirty();
 
+
         runTask(&send_client_keep_alive);
     }
 
-    private void send_client_keep_alive()
+    private void send_client_keep_alive() nothrow
     {
-        for (;;)
+        try {
+            for (;;)
         {
             send_packet_to_all_clients(packet_type._keepalive_packet, []);
             sleep(client_keep_alive_period);
         }
+        } catch (Exception e) {
+            //!!!!!!!!!!!!!!!
+        }
+        
     }
 
     private void send_packet_to_all_clients(packet_type type, immutable(ubyte)[] payload)
@@ -168,7 +174,7 @@ public class RoomServer
                 {
                     connected[i] = true;
                     if (kickAsDuplicate)
-                        connection.throw_exception_in_task(new DuplicateClientException(connection.client.user_id));
+                        connection.get().throw_exception_in_task(new DuplicateClientException(connection.get().client.user_id));
                 }
             }
         }

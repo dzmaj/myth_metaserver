@@ -39,27 +39,35 @@ WWWServer run_www_server(string config_file = "www_config.json")
     return new WWWServer(config);
 }
 
-
 void run_gc_cleanup()
 {
-    runTask({
-        scope(exit) log_message("Process: ERROR, GC cleanup task exited!");
 
-        for (;;)
-        {
-            sleep(5.minutes);
+    auto task = delegate() nothrow {
+        try {
+            scope(exit) log_message("Process: ERROR, GC cleanup task exited!");
 
-            log_message("Process: Starting GC collect...");            
-            auto sw = StopWatch(AutoStart.yes);
+            for (;;)
+            {
+                sleep(5.minutes);
 
-            GC.collect();
-            GC.minimize();
+                log_message("Process: Starting GC collect...");            
+                auto sw = StopWatch(AutoStart.yes);
 
-            log_message("Process: Finished GC collect in %d ms. Used/free (MB): %s/%s",
-						sw.peek.total!"msecs",
-						GC.stats.usedSize / 1000000, GC.stats.freeSize / 1000000);
+                GC.collect();
+                GC.minimize();
+
+                log_message("Process: Finished GC collect in %d ms. Used/free (MB): %s/%s",
+                            sw.peek.total!"msecs",
+                            GC.stats.usedSize / 1000000, GC.stats.freeSize / 1000000);
+            }
+        } catch (Exception e) {
+            //!!!!!!
         }
-    });
+        
+
+    }; 
+
+    runTask(task);
 }
 
 void start_servers(string[] args)
@@ -81,6 +89,7 @@ void start_servers(string[] args)
         // Good default for now if they don't specify any options
         if (!start_metaserver && !start_www_server) {
             start_metaserver = true;
+            start_www_server = true;
         }
 
         LoginServer metaserver;

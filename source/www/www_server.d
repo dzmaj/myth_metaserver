@@ -25,8 +25,9 @@ public struct WWWConfig
 
     @optional string recordings_path = "./recordings/public/";
 
-    @optional int http_server_port = 80;
+    @optional int http_server_port = 8081;
     @optional string http_server_log_file = "";
+    @optional string server_address = "127.0.0.1";
 
 	// User ID of the site super-admin (can create tournaments, etc)
 	@optional int super_admin_user_id = -1;
@@ -45,6 +46,7 @@ public class WWWServer
         settings.errorPageHandler = toDelegate(&error_page);
         settings.port = cast(ushort)m_config.http_server_port;
         settings.sessionStore = new MemorySessionStore();
+        settings.bindAddresses = [m_config.server_address];
 
         if (!m_config.http_server_log_file.empty)
             settings.accessLogFile = m_config.http_server_log_file;
@@ -495,9 +497,9 @@ public class WWWServer
             // NOTE: My reading of these specs implies that the OP (Steam) will preform the necessary
             // validation of the fields, which is why we copy them all into the check request.
             string[string] params;
-            foreach (key, value; req.query)
+            foreach (key; req.query.byKey())
             {
-                params[key] = value;
+                params[key] = req.query.get(key, "");
                 //writefln("%s: %s", key, value);
             }
             params["openid.mode"] = "check_authentication";

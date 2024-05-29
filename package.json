@@ -4,9 +4,9 @@
 	],
 	"copyright": "Copyright © 2019, Andrew Lauritzen",
 	"dependencies": {
-		"diet-ng": "~>1.5.0",
+		"diet-ng": "~>1.8.1",
 		"mysql-lited": "~>0.4.9",
-		"vibe-d": "~>0.8.5"
+		"vibe-core": "~>2.8.4"
 	},
 	"description": "Myth 2 Metaserver",
 	"mainSourceFile": "source/main.d",

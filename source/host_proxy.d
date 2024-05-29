@@ -5,6 +5,7 @@ import exceptions;
 import room_connection;
 import myth_socket;
 import room_server;
+import std.typecons;
 
 import vibe.vibe;
 
@@ -96,7 +97,7 @@ private class HostProxyPort
 
         auto host_writer_task = Task.getThis();
 
-        auto client_writer_task = runTask((TCPConnection host_stream, TCPConnection client_stream) {
+        auto task = delegate(TCPConnection host_stream, TCPConnection client_stream) @safe nothrow {
             bool interrupt_host = true;
             try
             {
@@ -105,13 +106,21 @@ private class HostProxyPort
             catch (InterruptException e) { interrupt_host = false; }
             catch (Exception e)
             {
-                log_message("HostProxy: Client writer %s -> %s exception: %s",
+                try{
+                    log_message("HostProxy: Client writer %s -> %s exception: %s",
                             host_stream.peerAddress, client_stream.peerAddress, e.msg);
+                } catch (Exception e) {
+                    //!!!
+                }
+                
             }
 
             if (interrupt_host)
                 host_writer_task.interrupt();
-        }, host_stream, client_stream);
+        };
+ 
+
+        auto client_writer_task = runTask(task, host_stream, client_stream);
 
         {
             bool interrupt_client = true;
@@ -235,6 +244,13 @@ public:
 			}
 		}
 	}
+
+    public void send_proxy_join_packet(Nullable!RoomConnection connection, ushort host_port) const
+    {
+        if (!connection.isNull) {
+            send_proxy_join_packet(connection.get(), host_port);
+        }
+    }
 
 	public void send_proxy_join_packet(RoomConnection connection, ushort host_port) const
 	{

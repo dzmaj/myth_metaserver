@@ -83,12 +83,14 @@ class LoginServer
             settings.port = cast(ushort)m_config.http_server_port;
             settings.errorPageHandler = &http_error_page;
             settings.accessLogFile = m_config.http_server_log_file;
+            settings.bindAddresses = [m_config.server_address];
 
             listenHTTP(settings, router);
         }
 
         // Set up login listen socket
         listenTCP(cast(ushort)m_config.login_port, &handle_login_connection, "0.0.0.0");
+
 
         // Finally, set up some maintainance tasks
         runTask(&cleanup);
@@ -219,7 +221,7 @@ class LoginServer
                 if (!client.isNull())
                 {
                     //log_message("Login: client ID %d is still connected", client.user_id);
-                    client.reset_seen();
+                    client.get().reset_seen();
                 }
             }
         }
@@ -228,54 +230,59 @@ class LoginServer
     // Update connected status of requested users and - if disconnected - remove them from logged in clients
     // Note that this function may mutate the list of user_ids that is passed in
     // Returns true if ALL clients are disconnected after this function completes
-    private bool remove_clients_if_disconnected(int[] user_ids)
+    @trusted private bool remove_clients_if_disconnected(int[] user_ids) nothrow
     {
-        if (user_ids.empty) return true;
+        try {
+            if (user_ids.empty) return true;
 
-        // Ignore any clients who are still within the connected window
-        auto user_ids_needing_update = remove!((int user_id) {
-            auto client = find_client(user_id);
-            return (!client.isNull() && !client.disconnected());
-        })(user_ids);
-        if (user_ids_needing_update.empty) return false;
-            
-        // If there are any ambiguous clients, ping the rooms to update the "last seen" values
-        update_clients_connected(user_ids_needing_update);
+            // Ignore any clients who are still within the connected window
+            auto user_ids_needing_update = remove!((int user_id) {
+                auto client = find_client(user_id);
+                return (!client.isNull() && !client.get().disconnected());
+            })(user_ids);
+            if (user_ids_needing_update.empty) return false;
+                
+            // If there are any ambiguous clients, ping the rooms to update the "last seen" values
+            update_clients_connected(user_ids_needing_update);
 
-        // And again, ignore any clients who are now within the connected window
-        user_ids_needing_update = remove!((int user_id) {
-            auto client = find_client(user_id);
-            return (!client.isNull() && !client.disconnected());
-        })(user_ids_needing_update);
-        if (user_ids_needing_update.empty) return false;
+            // And again, ignore any clients who are now within the connected window
+            user_ids_needing_update = remove!((int user_id) {
+                auto client = find_client(user_id);
+                return (!client.isNull() && !client.get().disconnected());
+            })(user_ids_needing_update);
+            if (user_ids_needing_update.empty) return false;
 
-        // Now we have to wait some timeout to see if we just happened to catch them between room changes
-        // If they do join a room in the interim it will update their "seen" time.
-        // NOTE: We technically only have to wait max(remaining disconnect timouts)... meh
-        sleep(client_disconnected_timeout); // BLOCKS (obviously)
+            // Now we have to wait some timeout to see if we just happened to catch them between room changes
+            // If they do join a room in the interim it will update their "seen" time.
+            // NOTE: We technically only have to wait max(remaining disconnect timouts)... meh
+            sleep(client_disconnected_timeout); // BLOCKS (obviously)
 
-        // At this point we can safely remove clients that haven't been seen for a while
-        // Only return true if we checked on all the users and removed them all
-        // NOTE: Probably important that none of this blocks!
-        bool removed_all = (user_ids.length == user_ids_needing_update.length);
-        foreach (user_id; user_ids_needing_update)
-        {
-            auto client = find_client(user_id);
-            if (client.isNull()) continue;
-
-            if (client.disconnected())
+            // At this point we can safely remove clients that haven't been seen for a while
+            // Only return true if we checked on all the users and removed them all
+            // NOTE: Probably important that none of this blocks!
+            bool removed_all = (user_ids.length == user_ids_needing_update.length);
+            foreach (user_id; user_ids_needing_update)
             {
-                m_clients.remove(user_id);
-                log_message("Login: Removing %s client ID %d (%d clients total)",
-                            client.guest ? "guest " : "", client.user_id, m_clients.length);
+                auto client = find_client(user_id);
+                if (client.isNull()) continue;
+
+                if (client.get().disconnected())
+                {
+                    m_clients.remove(user_id);
+                    log_message("Login: Removing %s client ID %d (%d clients total)",
+                                client.get().guest ? "guest " : "", client.get().user_id, m_clients.length);
+                }
+                else
+                {
+                    removed_all = false;
+                }
             }
-            else
-            {
-                removed_all = false;
-            }
+
+            return removed_all;
+        } catch (Exception e) {
+            return true;
         }
-
-        return removed_all;
+        
     }
 
     /***
@@ -354,20 +361,20 @@ class LoginServer
                 {
                     // Ok we already know about this client and have a user_id assigned
                     log_message("Login: Found old %s client with user ID %s...",
-                                old_client.guest ? "guest " : "", old_client.player_data.user_id);
+                                old_client.get().guest ? "guest " : "", old_client.get().player_data.user_id);
                     
                     // Are we already handling a login process for this client? If so just bail.
-                    if (!old_client.is_login_allowed())
-                        throw new DuplicateClientException(old_client.user_id);
+                    if (!old_client.get().is_login_allowed())
+                        throw new DuplicateClientException(old_client.get().user_id);
 
                     // Kick out the old user. This allows us to handle orphaned connections or logon from
                     // another location better than not allowing login.                    
                     // NOTE: We need to temporarily prevent this client from trying to log in/join a room
                     // or else we can potentially get some strange races. Once we have confirmed to have kicked
                     // the client out of all the rooms we can safely remove it.
-                    old_client.disallow_login();
-                    kick_client_from_rooms(old_client.user_id);
-                    m_clients.remove(old_client.user_id);
+                    old_client.get().disallow_login();
+                    kick_client_from_rooms(old_client.get().user_id);
+                    m_clients.remove(old_client.get().user_id);
                 }
             }
 
@@ -416,36 +423,41 @@ class LoginServer
     // Cleanup routine that gets called every once in a while
     // Gets rid of records for clients that have not been connected for a while to free
     // up some memory, invokes garbage collector explicitly, etc.
-    private void cleanup()
+    @safe private void cleanup() nothrow 
     {
-        scope(exit) log_message("Login: ERROR, cleanup task exited!");
+        
+        try {
+            scope(exit) log_message("Login: ERROR, cleanup task exited!");
+            auto cleanup_ids = appender!(int[])();
 
-        auto cleanup_ids = appender!(int[])();
+            for (;;)
+            {
+                sleep(cleanup_timer_period);
+                
+                // Remove clients who we haven't seen for a while
+                
+                // There are a variety of strategies for doing this, but we'll pick a fairly simple
+                // one: randomness! Pick some number of clients at random and check if they are still
+                // around. As long as we do this "enough", we'll avoid too much memory bloat on average.
 
-        for (;;)
-        {
-            sleep(cleanup_timer_period);
-            
-            // Remove clients who we haven't seen for a while
-            
-            // There are a variety of strategies for doing this, but we'll pick a fairly simple
-            // one: randomness! Pick some number of clients at random and check if they are still
-            // around. As long as we do this "enough", we'll avoid too much memory bloat on average.
+                // NOTE: The remove function blocks so we have to be a little careful as the client list
+                // can change on the fly here... luckily it's harmless to "attempt" to remove a client
+                // who has just logged on or similar, so we can just determine the IDs we want to check
+                // up front.
 
-            // NOTE: The remove function blocks so we have to be a little careful as the client list
-            // can change on the fly here... luckily it's harmless to "attempt" to remove a client
-            // who has just logged on or similar, so we can just determine the IDs we want to check
-            // up front.
+                //log_message("Login: Starting cleanup (%s clients total)...", m_clients.length);
 
-            //log_message("Login: Starting cleanup (%s clients total)...", m_clients.length);
+                immutable int number_to_cleanup = min(m_clients.length, cleanup_max_clients);
+                cleanup_ids.clear();
+                cleanup_ids.put(randomSample(m_clients.keys, number_to_cleanup));
+                remove_clients_if_disconnected(cleanup_ids.data());
 
-            immutable int number_to_cleanup = min(m_clients.length, cleanup_max_clients);
-            cleanup_ids.clear();
-            cleanup_ids.put(randomSample(m_clients.keys, number_to_cleanup));
-            remove_clients_if_disconnected(cleanup_ids.data());
-
-            //log_message("Login: Finished cleanup (%s clients total)...", m_clients.length);
+                //log_message("Login: Finished cleanup (%s clients total)...", m_clients.length);
+            }
+        } catch (Exception e) {
+            //!!!!!
         }
+        
     }
 
     // HTTP
@@ -483,21 +495,21 @@ class LoginServer
         auto client = find_client(token);
         if (client.isNull())
             throw new NotLoggedInException();
-        if (!client.is_login_allowed())
-            throw new DuplicateClientException(client.user_id);
+        if (!client.get().is_login_allowed())
+            throw new DuplicateClientException(client.get().user_id);
 
         // TODO: We could ensure that they come from the same host address as the original login
         // Obviously port can differ, but the IP address probably should not
 
         // Mark them as having been seen now
-        client.reset_seen();
+        client.get().reset_seen();
 
         // Kick them out of any rooms they are currently in
         // This is always legit since the authentication tokens match, etc.
-        kick_client_from_rooms(client.user_id);
+        kick_client_from_rooms(client.get().user_id);
 
         // Now we're good to let them join the room
-        return client;
+        return client.get();
     }
 
     public @property DataStoreInterface data_store()

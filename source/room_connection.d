@@ -613,7 +613,7 @@ final class RoomConnection : Connection
             {
                 auto player = m_room.find_client_in_room(id);
                 if (!player.isNull())
-                    players ~= player.client.player_data;
+                    players ~= player.get().client.player_data;
             }
             m_hosted_game.update_player_list(players);
         }
@@ -767,7 +767,7 @@ final class RoomConnection : Connection
         auto client_connection = m_room.find_client_in_room(user_id);
         if (!client_connection.isNull())
         {
-            auto client = client_connection.client;
+            auto client = client_connection.get().client;
             player_info_packet info;
 
             string login = to!string(client.user_id);

@@ -166,7 +166,7 @@ class RoomClient : Client
         m_metaserver_player_data.state = player_state.idle;
 
         // These get updated async by the room server
-        m_caste_bitmap_indices[] = -1; // No icon
+        m_caste_bitmap_indices[] = [-1, 0, -1]; // No icon
     }
 
     // Flag player as ingame or not
@@ -198,7 +198,9 @@ class RoomClient : Client
         return assumeUnique(result_bytes);
     }
 
-    public pure nothrow int caste_bitmap_index(RoomType type) const { return m_caste_bitmap_indices[type]; }
+    public pure nothrow int caste_bitmap_index(RoomType type) const { 
+        return m_caste_bitmap_indices[type];
+    }
     public nothrow void set_caste_bitmap_index(RoomType type, int caste) { m_caste_bitmap_indices[type] = caste; }
     public nothrow void set_caste_bitmap_indices(int[RoomType.num] caste) { m_caste_bitmap_indices = caste; }
 

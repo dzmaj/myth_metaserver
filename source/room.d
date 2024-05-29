@@ -10,6 +10,7 @@ import login_server;
 import room_server;
 import metaserver_config;
 import private_api;
+import rank_client;
 
 import std.datetime;
 import std.stdio;
@@ -75,13 +76,14 @@ static assert (metaserver_game_aux_data.sizeof == 32);
 class Room
 {
     public this(LoginServer login_server, RoomServer room_server, string room_name,
-                room_info info, int maximum_clients)
+                room_info info, int maximum_clients, RankClient rank_client)
     {
         m_login_server = login_server;
         m_room_server = room_server;
         m_room_info = info;
         m_room_name = room_name;
         m_maximum_clients = maximum_clients;
+        m_rank_client = rank_client;
 
         // Set up dot commands
         m_dot_commands["time"] = &dot_time;
@@ -132,9 +134,28 @@ class Room
     {
         m_room_info.player_count = cast(short)this.player_count();
         m_room_info.game_count   = cast(short)this.game_count();
+        foreach (user_id, connection; m_connections) {
+            update_player_rank(connection.client);
+        }
         // NOTE: Could check if it's really dirty/changed, but always mark it for now in case
         // the client is somehow out of sync.
         m_room_server.set_room_data_dirty();
+    }
+
+    public void update_player_rank(RoomClient client) {
+        // client.set_caste_bitmap_indices(get_player_rank(client.user_id));
+        auto ranks = get_player_rank(client.user_id);
+        client.set_caste_bitmap_index(RoomType.unranked, ranks[0]);
+        client.set_caste_bitmap_index(RoomType.ranked, ranks[1]);
+        client.set_caste_bitmap_index(RoomType.tournament, ranks[2]);
+    }
+
+    public int[] get_player_rank(int user_id) {
+        try {
+            return m_rank_client.getUserRank(user_id);
+        } catch (Exception e) {
+            return [-1,1,-1];
+        }
     }
 
     public void add_connection(RoomConnection connection)
@@ -143,6 +164,7 @@ class Room
             throw new TooManyClientsException();
 
         auto client = connection.client;
+        update_player_rank(client);
 
         // NOTE: Should never really get two clients with the same ID, but just to be sure
         if (client.user_id in m_connections)
@@ -628,6 +650,7 @@ class Room
         
     private LoginServer m_login_server;
     private RoomServer m_room_server;
+    private RankClient m_rank_client;
     
     private string m_room_name;
     private room_info m_room_info;

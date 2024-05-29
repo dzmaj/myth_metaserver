@@ -776,7 +776,12 @@ final class RoomConnection : Connection
             info.primary_color = client.primary_color;
             info.secondary_color = client.secondary_color;
             info.icon_index = client.coat_of_arms_bitmap_index;
-            info.administrator_flag = false;
+            if (client.user_id == 1) {
+                info.administrator_flag = true;
+            } else {
+                info.administrator_flag = false;
+            }
+            
             info.bungie_employee_flag = false;
 
             // Defaults are set up to work ok here

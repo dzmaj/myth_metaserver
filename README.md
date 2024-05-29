@@ -1,7 +1,5 @@
-# gateofstorms_metaserver
-This reposity houses the source code for the Gate of Storms unofficial metaserver for Myth 2.
-
-A live version of the metaserver can be found at http://www.gateofstorms.net/.
+# myth_metaserver
+Fork of Gate of Storms metaserver. So far has simply been updated to work with newer versions of D and vibe.d and added a simple rest interface for games: /rest/games/{gameId}
 
 Development
 -----------

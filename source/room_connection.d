@@ -12,6 +12,7 @@ import log;
 import room_server;
 import login_server;
 import private_api;
+import game_reporter_client;
 
 import vibe.core.core;
 import vibe.core.path;
@@ -111,6 +112,7 @@ final class RoomConnection : Connection
         m_login_server = login_server;
         m_room = room;
         m_client_deaf = false;
+        m_game_reporter_client = new GameReporterClient();
     }
 
     protected override void run_internal(MythSocket socket)
@@ -664,6 +666,13 @@ final class RoomConnection : Connection
 
                     m_hosted_game_recording_file = NativePath();
                 }
+                //Post to rank server
+                try {
+                    m_game_reporter_client.reportGame(result.game_id);
+                } catch (Exception e) {
+
+                }
+                
             }
             else
             {
@@ -860,6 +869,7 @@ final class RoomConnection : Connection
     private Game m_hosted_game = null;
     private GameRecording m_hosted_game_recording = null;
     private NativePath m_hosted_game_recording_file;
+    private GameReporterClient m_game_reporter_client;
 
     private bool m_client_deaf;
 

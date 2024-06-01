@@ -199,3 +199,39 @@ INSERT INTO `metaserver_scorings` (`scoring`, `scoring_name`) VALUES
 	(13, 'Co-op'),
 	(14, 'King of the Hill (TFL)'),
 	(15, 'King of the Map');
+
+
+CREATE TABLE IF NOT EXISTS `score_categories` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(32) NOT NULL,
+    description TEXT
+);
+
+CREATE TABLE IF NOT EXISTS `player_scores` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `user_id` INT NOT NULL,
+    `game_id` INT NOT NULL,
+    `category_id` INT NOT NULL,
+    `points` INT NOT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`user_id`) REFERENCES `metaserver_users`(`id`),
+    FOREIGN KEY (`game_id`) REFERENCES `metaserver_games`(`id`),
+    FOREIGN KEY (`category_id`) REFERENCES `score_categories`(`id`)
+);
+
+CREATE TABLE IF NOT EXISTS `player_overall_scores` (
+    `user_id` INT PRIMARY KEY,
+    `total_points` INT NOT NULL,
+    `last_updated` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`user_id`) REFERENCES `metaserver_users`(`id`)
+);
+
+CREATE TABLE IF NOT EXISTS `player_category_scores` (
+    `user_id` INT NOT NULL,
+    `category_id` INT NOT NULL,
+    `points` INT NOT NULL,
+    PRIMARY KEY (`user_id`, `category_id`),
+    FOREIGN KEY (`user_id`) REFERENCES `metaserver_users`(`id`),
+    FOREIGN KEY (`category_id`) REFERENCES `score_categories`(`id`)
+);
+

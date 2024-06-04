@@ -30,7 +30,7 @@ class RankClient {
   }
 
   // Method to make a GET request to the rank API endpoint
-  int[] getUserRank(int userId) {
+  int[] getUserRank(int userId) @trusted {
     // Check cache for existing rank
     auto p = userId in cache;
     if (p !is null) {
@@ -70,7 +70,10 @@ class RankClient {
             entry.expiryTime = MonoTime.currTime() + cacheTimeout;
             cache[userId] = entry;
         } else {
-            
+            RankCacheEntry entry;
+            entry.ranks = blank.ranks;
+            entry.expiryTime = MonoTime.currTime() + cacheTimeout;
+            cache[userId] = entry;
         }
     };
 
@@ -79,7 +82,7 @@ class RankClient {
 
       return requestRank;
     } catch (Exception e) {
-      
+      logInfo("Exception getting rank");
     }
     return blank.ranks;
   }

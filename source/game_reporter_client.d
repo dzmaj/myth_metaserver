@@ -25,7 +25,7 @@ class GameReporterClient {
     // Check cache for existing rank 
 
     // Rank not found in cache, make the HTTP request
-    auto url = "http://localhost:8080/rest/games";
+    auto url = "http://localhost:8080/rank-server/rest/games";
 
     auto requester = delegate(scope HTTPClientRequest req) {
         req.method = HTTPMethod.POST;

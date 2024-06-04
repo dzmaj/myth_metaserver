@@ -50,7 +50,7 @@ class RankClient {
     
 
     // Rank not found in cache, make the HTTP request
-    auto url = format("http://localhost:8080/rest/caste/%d", userId);
+    auto url = format("http://localhost:8080/rank-server/rest/caste/%d", userId);
     int[] requestRank;
 
     auto requester = delegate(scope HTTPClientRequest req) {

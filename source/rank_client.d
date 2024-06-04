@@ -75,6 +75,7 @@ class RankClient {
             entry.ranks = blank.ranks;
             entry.expiryTime = MonoTime.currTime() + cacheTimeout;
             cache[userId] = entry;
+            requestRank = blank.ranks;
         }
     };
 

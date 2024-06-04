@@ -145,9 +145,14 @@ class Room
     public void update_player_rank(RoomClient client) {
         // client.set_caste_bitmap_indices(get_player_rank(client.user_id));
         auto ranks = get_player_rank(client.user_id);
-        client.set_caste_bitmap_index(RoomType.unranked, ranks[0]);
-        client.set_caste_bitmap_index(RoomType.ranked, ranks[1]);
-        client.set_caste_bitmap_index(RoomType.tournament, ranks[2]);
+        try {
+            client.set_caste_bitmap_index(RoomType.unranked, ranks[0]);
+            client.set_caste_bitmap_index(RoomType.ranked, ranks[1]);
+            client.set_caste_bitmap_index(RoomType.tournament, ranks[2]);
+        } catch (Exception e) {
+            log_message("Error setting caste for %d", client.user_id);
+        }
+        
     }
 
     public int[] get_player_rank(int user_id) {

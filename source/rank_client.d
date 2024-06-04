@@ -62,11 +62,12 @@ class RankClient {
             auto json = res.readJson();
             // Parse the response body to extract the rank array (implementation depends on API format)
             auto ranks = deserializeJson!RankResponseBody(json).ranks;
+            logInfo("Got ranks");
 
             // Update cache with new rank and expiry time
             RankCacheEntry entry;
-            entry.ranks = ranks.ranks;
-            requestRank = ranks.ranks;
+            entry.ranks = ranks;
+            requestRank = ranks;
             entry.expiryTime = MonoTime.currTime() + cacheTimeout;
             cache[userId] = entry;
         } else {

@@ -30,5 +30,7 @@
 	"targetType": "executable",
 	"versions": [
 		"VibeDisableCommandLineParsing"
-	]
+	],
+	"libs": ["ssl"],
+    "lflags": ["-L/usr/local/Cellar/openssl@3/3.3.0/lib"]
 }

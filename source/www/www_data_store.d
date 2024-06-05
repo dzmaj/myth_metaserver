@@ -378,7 +378,7 @@ public class WWWDataStoreMysql : WWWDataStoreInterface
                 "SELECT
                     metaserver_users.nick_name AS nick_name,
                     DATE_FORMAT(metaserver_users.last_login_datetime, '%Y-%m-%d %H:%i:%S') AS last_login_datetime,
-                    metaserver_login_tokens.steam_id AS steam_id
+                    metaserver_login_tokens.discord_id AS steam_id
                 FROM metaserver_users
                 LEFT JOIN metaserver_login_tokens ON metaserver_users.id = metaserver_login_tokens.user_id
                 WHERE metaserver_users.id = ?;", user_id, (MySQLRow row) {
@@ -388,7 +388,7 @@ public class WWWDataStoreMysql : WWWDataStoreInterface
             result.nick_name              = row.nick_name.get!string;
             result.last_login_date_string = row.last_login_datetime.isNull ? "" : row.last_login_datetime.get!string;
             // NOTE: We encode this here for simplicity, but should eventually move to a utility function somewhere
-            result.steam_profile_url      = row.steam_id.isNull ? "" : ("https://steamcommunity.com/profiles/" ~ to!string(row.steam_id.get!uint64_t) ~ "/");
+            result.steam_profile_url      = row.steam_id.isNull ? "" : ("https://discordapp.com/users/" ~ to!string(row.steam_id.get!uint64_t) ~ "/");
         });
 
         if (not_found)
@@ -820,7 +820,7 @@ public class WWWDataStoreMysql : WWWDataStoreInterface
                     metaserver_login_tokens.password_token AS password_token
                 FROM metaserver_login_tokens
                     INNER JOIN metaserver_users ON (metaserver_login_tokens.user_id = metaserver_users.id)
-                WHERE metaserver_login_tokens.steam_id = ?;", steam_id, (MySQLRow row) {
+                WHERE metaserver_login_tokens.discord_id = ?;", steam_id, (MySQLRow row) {
             tokens = row.toStruct!(UserLoginTokens, Strict.yesIgnoreNull);
         });        
         return tokens;
@@ -861,7 +861,7 @@ public class WWWDataStoreMysql : WWWDataStoreInterface
             string user_name_token = "u" ~ to!string(user_id);
             string password_token = generate_random_password(6);
 
-            db.execute("INSERT INTO metaserver_login_tokens (user_id, steam_id, user_name_token, password_token) VALUES (?, ?, ?, ?)",
+            db.execute("INSERT INTO metaserver_login_tokens (user_id, discord_id, user_name_token, password_token) VALUES (?, ?, ?, ?)",
                        user_id, steam_id, user_name_token, password_token);
 
             if (db.affected() > 0)

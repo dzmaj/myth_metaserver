@@ -45,10 +45,10 @@ CREATE TABLE IF NOT EXISTS `metaserver_users` (
 
 CREATE TABLE IF NOT EXISTS `metaserver_login_tokens` (
   `user_id` int(11) NOT NULL,
-  `steam_id` bigint(20) unsigned NOT NULL,
+  `discord_id` bigint(20) unsigned NOT NULL,
   `user_name_token` varchar(32) NOT NULL,
   `password_token` varchar(32) NOT NULL,
-  UNIQUE KEY `steam_id` (`steam_id`),
+  UNIQUE KEY `discord_id` (`discord_id`),
   KEY `FK_metaserver_login_www_tokens_metaserver_users` (`user_id`),
   CONSTRAINT `FK_metaserver_login_www_tokens_metaserver_users` FOREIGN KEY (`user_id`) REFERENCES `metaserver_users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

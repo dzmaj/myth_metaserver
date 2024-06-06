@@ -8,6 +8,7 @@ public struct MetaserverConfig
 {
     @optional string server_address = "127.0.0.1";    // NOTE: Should be set properly for any public server
     @optional string database_connection_string = "host=127.0.0.1;user=metaserver;db=metaserver_db;port=3306;pwd=metaserver"; // Empty = test mode!
+    @optional string api_key = "test";
 
     @optional int http_server_port = 8080;
     @optional string http_server_log_file = "";

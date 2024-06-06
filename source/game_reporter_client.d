@@ -20,22 +20,21 @@ class GameReporterClient {
     client = new HTTPClient();
   }
 
-  // Method to make a GET request to the rank API endpoint
+  // Method to make a GET request to report which game was played
   public void reportGame(int gameId) {
-    // Check cache for existing rank 
 
-    // Rank not found in cache, make the HTTP request
-    auto url = "http://localhost:8080/rank-server/rest/games";
+    auto url = "http://localhost:8080/rank-server/report/games";
 
     auto requester = delegate(scope HTTPClientRequest req) {
         req.method = HTTPMethod.POST;
         req.writeJsonBody(new GameResult(gameId));
     };
     auto responder = delegate(scope HTTPClientResponse res) {
-        logInfo("Got Response");
+        
         if (res.statusCode == 200) {
+            logInfo("Got success response for game report");
         } else {
-            
+            logInfo("Got failure response for game report");
         }
     };
 
@@ -44,7 +43,8 @@ class GameReporterClient {
 
       return;
     } catch (Exception e) {
-      
+        logInfo(e.message);
+        logInfo("Got exception while reporting game to " ~ url);
     }
   }
 

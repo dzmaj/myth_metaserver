@@ -55,37 +55,37 @@ public class WWWServer
 
 	    auto router = new URLRouter;
     
-        router.get("/", &index);
-        router.get("/account/", &account);
-        router.get("/account/logout/", &account_logout);
-        router.get("/account/steam_login/", &account_steam_login);
-        router.get("/account/steam_login_return/", &account_steam_login_return);
+        router.get("/www/", &index);
+        router.get("/www/account/", &account);
+        router.get("/www/account/logout/", &account_logout);
+        router.get("/www/account/steam_login/", &account_steam_login);
+        router.get("/www/account/steam_login_return/", &account_steam_login_return);
 
-        router.get("/games/", &games);
-        router.get("/games/:game_id/", &game);
-		router.get("/games/:game_id/download/", &game_download);
+        router.get("/www/games/", &games);
+        router.get("/www/games/:game_id/", &game);
+		router.get("/www/games/:game_id/download/", &game_download);
 
-		router.get("/users/", &users);
-        router.get("/users/:user_id/", &user);
-		router.get("/users/:user_id", &user);		// Metaserver uses this one, so always include it
+		router.get("/www/users/", &users);
+        router.get("/www/users/:user_id/", &user);
+		router.get("/www/users/:user_id", &user);		// Metaserver uses this one, so always include it
 
-        router.get("/tournaments/", &tournaments);			
-        router.get("/tournaments/:tournament_short_name/", &tournament);
-        router.get("/tournaments/:tournament_short_name/rounds/:round_id/", &tournament_round);
-        router.get("/tournaments/:tournament_short_name/rounds/:round_id/games/:game_id/", &tournament_round_game);
-		router.get("/tournaments/:tournament_short_name/rounds/:round_id/games/:game_id/download/", &tournament_round_game_download);
+        router.get("/www/tournaments/", &tournaments);			
+        router.get("/www/tournaments/:tournament_short_name/", &tournament);
+        router.get("/www/tournaments/:tournament_short_name/rounds/:round_id/", &tournament_round);
+        router.get("/www/tournaments/:tournament_short_name/rounds/:round_id/games/:game_id/", &tournament_round_game);
+		router.get("/www/tournaments/:tournament_short_name/rounds/:round_id/games/:game_id/download/", &tournament_round_game_download);
 
-		router.post("/tournaments/", &tournament_create);
-		router.post("/tournaments/:tournament_short_name/", &tournament_round_create);
-		router.post("/tournaments/:tournament_short_name/rounds/:round_id/", &tournament_round_game_create);
+		router.post("/www/tournaments/", &tournament_create);
+		router.post("/www/tournaments/:tournament_short_name/", &tournament_round_create);
+		router.post("/www/tournaments/:tournament_short_name/rounds/:round_id/", &tournament_round_game_create);
 
         auto file_server_settings = new HTTPFileServerSettings;
-        file_server_settings.serverPathPrefix = "/recordings/";
-        router.get("/recordings/*", serveStaticFiles(m_config.recordings_path, file_server_settings));
+        file_server_settings.serverPathPrefix = "/www/recordings/";
+        router.get("/www/recordings/*", serveStaticFiles(m_config.recordings_path, file_server_settings));
 
-		router.get("/metaserver/", &metaserver);
+		router.get("/www/metaserver/", &metaserver);
 			
-        router.get("/faq/", &faq);
+        router.get("/www/faq/", &faq);
 
         router.registerRestInterface(new RestApiImpl(m_data_store));
 	
@@ -111,7 +111,7 @@ public class WWWServer
             }
         }
 
-        router.get("*", serveStaticFiles("./public/"));
+        router.get("www/*", serveStaticFiles("./public/"));
 
     
 
@@ -235,7 +235,7 @@ public class WWWServer
         }
         catch (Exception e)
         {
-            res.redirect("/games/");
+            res.redirect("/www/games/");
             log_message("Error rendering games page: %s", e.msg);
             throw e;
         }
@@ -258,13 +258,13 @@ public class WWWServer
         auto game = m_data_store.game(game_id);
 
         if (!game.recording_file_name.empty)
-			res.redirect("/recordings/" ~ game.recording_file_name);
+			res.redirect("/www/recordings/" ~ game.recording_file_name);
     }
 
 	private void users(HTTPServerRequest req, HTTPServerResponse res)
     {
 		// No "list of users" page currently, so just redirect home
-        res.redirect("/");
+        res.redirect("/www/");
     }
 
     private void user(HTTPServerRequest req, HTTPServerResponse res)
@@ -341,7 +341,7 @@ public class WWWServer
         auto game = m_data_store.game(game_id);
 
         if (!game.recording_file_name.empty)
-			res.redirect("/recordings/" ~ game.recording_file_name);
+			res.redirect("/www/recordings/" ~ game.recording_file_name);
     }
 
     private void tournament_round(HTTPServerRequest req, HTTPServerResponse res)
@@ -387,7 +387,7 @@ public class WWWServer
 				create_tournament_error_msg = "Failed to create tournament.";
         }
 
-		res.redirect("/tournaments/");
+		res.redirect("/www/tournaments/");
     }
 
 	private void tournament_round_create(HTTPServerRequest req, HTTPServerResponse res)
@@ -404,7 +404,7 @@ public class WWWServer
 		}
 
 		// Redirect and re-render tournament page as usual
-		res.redirect("/tournaments/" ~ req.params["tournament_short_name"] ~ "/");
+		res.redirect("/www/tournaments/" ~ req.params["tournament_short_name"] ~ "/");
     }
 
     private void tournament_round_game_create(HTTPServerRequest req, HTTPServerResponse res)
@@ -423,7 +423,7 @@ public class WWWServer
 			m_data_store.create_tournament_round_game(round_id, game_id);
 		}
 
-        res.redirect("/tournaments/" ~ req.params["tournament_short_name"] ~ "/rounds/" ~ to!string(round_id) ~ "/");
+        res.redirect("/www/tournaments/" ~ req.params["tournament_short_name"] ~ "/rounds/" ~ to!string(round_id) ~ "/");
     }
 
 
@@ -466,7 +466,7 @@ public class WWWServer
         // Required parameters
         if (!req.session || !req.session.isKeySet("logged_in_steam_id"))
         {
-            res.redirect("/account/");
+            res.redirect("/rank-server/login/");
             return;
         }
 
@@ -474,7 +474,7 @@ public class WWWServer
         auto initial_name = to!string(steam_id);        // Gets changed on first login anyways...
         auto user_id = m_data_store.create_steam_user(steam_id, initial_name, initial_name);
 
-        res.redirect("/account/"); // Will render differently now that they have an account
+        res.redirect("/www/account/"); // Will render differently now that they have an account
     }
 
     private void account_steam_login(HTTPServerRequest req, HTTPServerResponse res)
@@ -558,7 +558,7 @@ public class WWWServer
             throw e;
         }
 
-        res.redirect("/account/");
+        res.redirect("/www/account/");
     }
 
     private void account_logout(HTTPServerRequest req, HTTPServerResponse res)
@@ -566,7 +566,7 @@ public class WWWServer
         // Clear relevant session data for this user
         // For now just terminate the session - in the future might want to just remove relevant data.
         if (req.session) res.terminateSession();
-        res.redirect("/account/");
+        res.redirect("/www/account/");
     }
 
 

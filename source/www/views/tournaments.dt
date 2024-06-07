@@ -5,7 +5,7 @@ block content
         .row
             .large-12.columns
                 h1 Create Tournament
-                form(name="create_tournament_form", action="/tournaments/", method="post")
+                form(name="create_tournament_form", action="/www/tournaments/", method="post")
                     .row
                         .medium-7.columns
                             label Tournament Name

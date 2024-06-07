@@ -14,7 +14,7 @@
                 th Dmg Ratio
         tbody
             - foreach (player; player_stats)
-                - auto player_url = "/users/" ~ to!string(player.user_id) ~ "/";
+                - auto player_url = "/www/users/" ~ to!string(player.user_id) ~ "/";
                 tr
                     td.nick_name
                         a(href="#{player_url}")= player.nick_name

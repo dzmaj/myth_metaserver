@@ -8,5 +8,5 @@ block content
                 Gate of Storms uses Steam accounts for sign-in. This avoids the need for separate account,
                 authentication and security measures.
             p
-                a(href="/account/steam_login/")
+                a(href="/rank-server/login")
                     img(src="/account/steam_login.png")

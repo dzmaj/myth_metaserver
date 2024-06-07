@@ -71,7 +71,7 @@
                                     - if (player.guest)
                                         |#{player.nick_name}
                                     - else
-                                        a(href="/users/#{player.user_id}/")= player.nick_name
+                                        a(href="/www/users/#{player.user_id}/")= player.nick_name
 
                                 - if (team.spectators)
                                     td(colspan="6")

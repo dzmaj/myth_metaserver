@@ -6,8 +6,8 @@ block content
     .row
         .large-12.columns
             h1.
-                <a href="/tournaments/#{tournament.short_name}/">#{tournament.short_name}</a> >>
-                <a href="/tournaments/#{tournament.short_name}/rounds/#{round.round_id}/">#{round.name}</a>
+                <a href="/www/tournaments/#{tournament.short_name}/">#{tournament.short_name}</a> >>
+                <a href="/www/tournaments/#{tournament.short_name}/rounds/#{round.round_id}/">#{round.name}</a>
 
     - render_game();
     

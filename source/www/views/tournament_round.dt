@@ -4,11 +4,11 @@ block content
     include games_list.inc
     include player_stats.inc
 
-    - auto round_base_url = "/tournaments/" ~ tournament.short_name ~ "/rounds/" ~ to!string(round.round_id) ~ "/";
+    - auto round_base_url = "/www/tournaments/" ~ tournament.short_name ~ "/rounds/" ~ to!string(round.round_id) ~ "/";
     
     .row
         .large-12.columns
-            h1 <a href="/tournaments/#{tournament.short_name}/">#{tournament.short_name}</a> >> #{round.name}
+            h1 <a href="/www/tournaments/#{tournament.short_name}/">#{tournament.short_name}</a> >> #{round.name}
 
             h3 Games
 

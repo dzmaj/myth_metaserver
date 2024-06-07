@@ -8,7 +8,7 @@ block content
             h1 #{tournament.name}
 
             - if (global.is_logged_in_tournament_organizer(tournament.organizer_user_id))
-                form(name="create_round_form", action="/tournaments/#{tournament.short_name}/", method="post")
+                form(name="create_round_form", action="/www/tournaments/#{tournament.short_name}/", method="post")
                     .row
                         .medium-9.columns
                             input(name="create_round_name", type="text", placeholder="Enter round name...", required, maxlength="32")
@@ -26,7 +26,7 @@ block content
                         tr
                             td= round.start_date_string
                             td
-                                a(href="/tournaments/#{tournament.short_name}/rounds/#{round.round_id}/")= round.name
+                                a(href="/www/tournaments/#{tournament.short_name}/rounds/#{round.round_id}/")= round.name
                             td= round.game_count
 
             h3 Player Statistics

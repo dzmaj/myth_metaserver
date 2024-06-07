@@ -111,7 +111,7 @@ public class WWWServer
             }
         }
 
-        router.get("www/*", serveStaticFiles("./public/"));
+        router.get("/www/*", serveStaticFiles("./public/"));
 
     
 

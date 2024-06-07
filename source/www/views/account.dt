@@ -9,4 +9,4 @@ block content
                 authentication and security measures.
             p
                 a(href="/rank-server/login")
-                    img(src="/account/steam_login.png")
+                    img(src="/www/account/discord_login.png")

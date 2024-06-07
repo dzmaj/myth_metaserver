@@ -41,7 +41,7 @@ html(class="no-js", lang="en")
                     
                     li.divider
                     li
-                        a(href="/rank-server/login/") Account
+                        a(href="/rank-server/login") Account
 
                         //- If there's a logged in user, show a dropdown with a link to their profile
                         - static if (is(typeof(global)))

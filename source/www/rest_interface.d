@@ -11,9 +11,9 @@ import vibe.stream.stdio;
 import vibe.http.common;
 
 
-@path("/rest/")
+@path("/www/rest/")
 interface RestApi {
-    @path("/games/:id") @method(HTTPMethod.GET)
+    @path("/www/games/:id") @method(HTTPMethod.GET)
     Game getGame(int _id);
 }
 

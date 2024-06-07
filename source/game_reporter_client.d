@@ -27,8 +27,8 @@ class GameReporterClient {
 
     auto requester = delegate(scope HTTPClientRequest req) {
         req.method = HTTPMethod.POST;
-        req.writeJsonBody(new GameResult(gameId));
         req.headers["bagrada-api-key"] = "test";
+        req.writeJsonBody(new GameResult(gameId));
     };
     auto responder = delegate(scope HTTPClientResponse res) {
         

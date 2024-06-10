@@ -13,7 +13,7 @@ import vibe.http.common;
 
 @path("/www/rest/")
 interface RestApi {
-    @path("/www/games/:id") @method(HTTPMethod.GET)
+    @path("/games/:id") @method(HTTPMethod.GET)
     Game getGame(int _id);
 }
 

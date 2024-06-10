@@ -146,7 +146,7 @@ public enum ClientHostProxyState {
 // It has private/immutable data and therefor cannot be directly serialized over the private API
 class RoomClient : Client
 {
-    public this(const(Client) info)
+    public this(const(Client) info, bool sendGameVersionZero)
     {
         m_player_data = info.m_player_data;
         m_authentication_token = info.m_authentication_token;
@@ -156,7 +156,7 @@ class RoomClient : Client
         m_metaserver_player_data.primary_color   = int_to_rgb_color(info.player_data.primary_color);
         m_metaserver_player_data.secondary_color = int_to_rgb_color(info.player_data.secondary_color);
 
-        m_metaserver_player_data.game_version = cast(short)info.player_data.game_version;
+        m_metaserver_player_data.game_version = sendGameVersionZero ? 0 : cast(short)info.player_data.game_version;
         m_metaserver_player_data.build_number = cast(short)info.player_data.build_number;
         
         // This one seems unused by Myth. Instead it uses the one in the aux_player_data structure.

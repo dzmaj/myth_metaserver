@@ -144,7 +144,7 @@ public final class LoginConnection : Connection
 
         {
             // Sort of silly, but we need to construct a temp "Room Client" object just to get the player data payload
-            auto temp_client = new RoomClient(client);
+            auto temp_client = new RoomClient(client, false);
             auto player_data_payload = temp_client.player_data_big_endian();
 
             // NOTE: Nothing but the player data segment seems to be used here...

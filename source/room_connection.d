@@ -180,7 +180,7 @@ final class RoomConnection : Connection
             // NOTE: Important not to block between here and adding the user to the room or else two room
             // joins could race! Hence why we do this after we've received all of the relevant data from the client.
             auto client_info = m_login_server.queryClientForRoomJoin(token);
-            m_client = new RoomClient(client_info);
+            m_client = new RoomClient(client_info, true);
 
             // Reject guests in ranked/tourney rooms
             // NOTE: This doesn't produce a really nice error message in the client, but it will at least go back
@@ -389,6 +389,7 @@ final class RoomConnection : Connection
     private void handle_chat(MythSocket socket, short type)
     {
         uint target_user_id;
+        uint user_id;
         int local_echo;
         myth_metaserver_chat_packet chat_packet;
         string player_name;
@@ -425,13 +426,15 @@ final class RoomConnection : Connection
             // Avoid chat spoofing
             // TODO: Perhaps replace RGB as well... at which point we might as well just replace the whole packet.
             player_name = m_client.player_data.nick_name;
-            chat_packet.player_id = m_client.user_id;
+            user_id = m_client.user_id;
+            chat_packet.player_id = user_id;
 
             if (broadcast)
             {
                 // Send the packet to everyone in the room
                 auto payload = MythSocket.encode_payload(chat_packet, player_name, message);
                 m_room.send_packet_to_all_clients(packet_type._room_broadcast_packet, payload);
+                log_message("%s (id %d) broadcast: %s", player_name, user_id, message);
             }
             else
             {
@@ -443,6 +446,8 @@ final class RoomConnection : Connection
                 // If requested, echo it back to the client as well
                 if (local_echo && target_user_id != m_client.user_id)
                     send_packet(packet_type._directed_data_packet, payload);
+
+                log_message("%s (id %d) DMed id %s: %s", player_name, user_id, target_user_id, message);
             }
         }
     }
@@ -779,19 +784,23 @@ final class RoomConnection : Connection
             auto client = client_connection.get().client;
             player_info_packet info;
 
-            string login = to!string(client.user_id);
+            // string login = to!string(client.user_id);
+            // use login instead of userid
+            string login = client.player_data.user_name;
             string order_name = "";
 
             info.primary_color = client.primary_color;
             info.secondary_color = client.secondary_color;
             info.icon_index = client.coat_of_arms_bitmap_index;
-            if (client.user_id == 1) {
+            if (client.user_id < 12) {
                 info.administrator_flag = true;
+                info.bungie_employee_flag = true;
             } else {
                 info.administrator_flag = false;
+                info.bungie_employee_flag = false;
             }
             
-            info.bungie_employee_flag = false;
+            
 
             // Defaults are set up to work ok here
             auto server_info = m_login_server.data_store.get_player_info(client.user_id);

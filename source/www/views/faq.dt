@@ -7,8 +7,6 @@ block content
                 .title
                     img(src="/www/faq/gos_faq_01.png", width="360", height="200", alt="Myth on Gate of Storms")
                 
-                ul
-                    li <a href="#what">What is Bagrada?</a>
             
                 a(name="what", id="what")
                 hr

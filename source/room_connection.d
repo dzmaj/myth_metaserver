@@ -784,9 +784,9 @@ final class RoomConnection : Connection
             auto client = client_connection.get().client;
             player_info_packet info;
 
-            // string login = to!string(client.user_id);
-            // use login instead of userid
-            string login = client.player_data.user_name;
+            string login = to!string(client.user_id);
+            // use login instead of userid, will need a little more db tweaks for this
+            // string login = client.player_data.user_name;
             string order_name = "";
 
             info.primary_color = client.primary_color;

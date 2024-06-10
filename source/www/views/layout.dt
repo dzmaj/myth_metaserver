@@ -7,11 +7,11 @@ html(class="no-js", lang="en")
         
         title Gate of Storms
         
-        script(src="/www/js/vendor/jquery.js")
-        script(src="/www/js/vendor/foundation.js")
+        script(src="/static/js/vendor/jquery.js")
+        script(src="/static/js/vendor/foundation.js")
 
-        link(rel="stylesheet", href="/www/css/foundation.css")
-        link(rel="stylesheet", href="/www/css/app.css")
+        link(rel="stylesheet", href="/static/css/foundation.css")
+        link(rel="stylesheet", href="/static/css/app.css")
     body
         nav.top-bar
             .top-bar-left
@@ -54,11 +54,11 @@ html(class="no-js", lang="en")
             .top-bar-right
                 ul(class="dropdown menu", data-dropdown-menu)
                     li
-                        a(href="http://www.myrgard.com/") Myrgard Forums
+                        a(href="https://discord.gg/waXuquppry") Discord
                         
 
         #content
             block content
         
-        script(src="/www/js/vendor/what-input.js")
-        script(src="/www/js/app.js")
+        script(src="/static/js/vendor/what-input.js")
+        script(src="/static/js/app.js")

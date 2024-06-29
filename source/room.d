@@ -557,7 +557,11 @@ class Room
 
         metaserver_player_aux_data aux_data_packet;
         aux_data_packet.verb = cast(ushort)verb;
-        aux_data_packet.flags = 0;
+        if (client.user_id < 12) {
+            aux_data_packet.flags = 1;
+        } else {
+            aux_data_packet.flags = 0;
+        }
         aux_data_packet.ranking = 0;
         aux_data_packet.player_id = client.user_id;
         aux_data_packet.room_id = 0; // NOTE: Unused in bungie metaserver

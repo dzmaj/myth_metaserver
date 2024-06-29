@@ -247,6 +247,8 @@ class GameRecording
         return file_path;
 	}
 
+    @property public pure nothrow const(ubyte[]) recording_header() const { return m_recording_header; }
+
     // Recording
 	private ubyte[] m_recording_header;
 	private ubyte[][] m_recording_command_buffer;

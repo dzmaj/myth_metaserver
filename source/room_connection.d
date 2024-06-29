@@ -709,7 +709,8 @@ final class RoomConnection : Connection
         }
 
         assert(m_hosted_game_recording);
-        m_hosted_game_recording.append_recording_header(socket.receive_packet_payload());
+        auto data = socket.receive_packet_payload();
+        m_hosted_game_recording.append_recording_header(data);
     }
 
     private void handle_recording_stream_command(MythSocket socket)
@@ -720,6 +721,13 @@ final class RoomConnection : Connection
                                               ~ to!string(m_client.user_id) ~ " is not hosting a recorded game");
         }
         m_hosted_game_recording.append_recording_command(socket.receive_packet_payload());
+
+        if (!m_sent_rec_header) {
+            m_game_reporter_client.reportGameRecordingStart(m_hosted_game_recording.recording_header());
+            m_sent_rec_header = true;
+        }
+        
+
     }
 
     private void handle_recording_stream_end(MythSocket socket)
@@ -745,6 +753,7 @@ final class RoomConnection : Connection
 
         // If successful, report the file name of the recording to the game result
         m_hosted_game.set_recording_file_name(m_hosted_game_recording_file.head.name);
+        m_sent_rec_header = false;
     }
 
 
@@ -879,6 +888,7 @@ final class RoomConnection : Connection
     private GameRecording m_hosted_game_recording = null;
     private NativePath m_hosted_game_recording_file;
     private GameReporterClient m_game_reporter_client;
+    private bool m_sent_rec_header = false;
 
     private bool m_client_deaf;
 

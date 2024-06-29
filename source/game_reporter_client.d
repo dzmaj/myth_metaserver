@@ -49,4 +49,31 @@ class GameReporterClient {
     }
   }
 
+  public void reportGameRecordingStart(const(ubyte[]) data) {
+      auto url = "http://localhost:8080/rank-server/report/gameStart";
+
+      auto requester = delegate(scope HTTPClientRequest req) {
+          req.method = HTTPMethod.POST;
+          req.headers["bagrada-api-key"] = "test";
+          req.writeBody(data);
+      };
+
+      auto responder = delegate(scope HTTPClientResponse res) {
+
+          if (res.statusCode == 200) {
+              logInfo("Got success response for game start");
+          } else {
+              logInfo("Got failure response for game start");
+          }
+      };
+
+      try {
+          requestHTTP(url, requester, responder);
+          return;
+      } catch (Exception e) {
+          logInfo(e.message);
+          logInfo("Got exception while reporting game start to " ~ url);
+      }
+  }
+
 }

@@ -234,3 +234,45 @@ CREATE TABLE player_category_scores (
 );
 
 
+CREATE TABLE IF NOT EXISTS game_extensions (
+    id INT NOT NULL,
+    mesh_tag VARCHAR(255) NOT NULL,
+    game_build INT NOT NULL,
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS game_chat_messages (
+    id BIGINT AUTO_INCREMENT NOT NULL,
+    text VARCHAR(255) NOT NULL,
+    user_id INT,
+    team_player_id INT NOT NULL,
+    simple_sender_name VARCHAR(255) NOT NULL,
+    game_id INT NOT NULL,
+    sent_time TIMESTAMP NOT NULL,
+    whisper BOOLEAN NOT NULL,
+    PRIMARY KEY (id),
+    FOREIGN KEY (user_id) REFERENCES metaserver_users(id),
+    FOREIGN KEY (team_player_id) REFERENCES metaserver_games_teams_players(id),
+    FOREIGN KEY (game_id) REFERENCES metaserver_games(id)
+);
+
+
+CREATE TABLE IF NOT EXISTS plugin_infos (
+    id INT AUTO_INCREMENT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    url VARCHAR(255) NOT NULL,
+    checksum BIGINT NOT NULL,
+    tain_url VARCHAR(255) NOT NULL,
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE IF NOT EXISTS game_extension_plugin_info (
+  id BIGINT AUTO_INCREMENT NOT NULL,
+  plugin_id INT NOT NULL,
+  game_extension_id INT NOT NULL,
+  PRIMARY KEY (id),
+  FOREIGN KEY (plugin_id) REFERENCES plugin_infos(id),
+  FOREIGN KEY (game_extension_id) REFERENCES game_extensions(id)
+);
+
+

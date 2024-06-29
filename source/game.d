@@ -9,6 +9,7 @@ import private_api;
 import game_recording;
 
 import vibe.data.json;
+import vibe.http.client;
 
 import std.string;
 import std.conv;
@@ -336,6 +337,9 @@ public class Game
 		//m_game_result.host_observer       = 0 != (desc.parameters.option_flags & (1 << _game_option_server_is_observer_bit));
 		m_game_result.vtfl                = 0 != (desc.parameters.option_flags & (1 << _game_option_uses_tfl_bit));
 		m_game_result.anti_clump          = 0 != (desc.parameters.option_flags & (1 << _game_option_uses_anticlump_bit));
+
+
+        // this.sendGameStartToAPI();
 	}
 
     // Sets relevant field in results - should be called before scores are reported below

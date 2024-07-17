@@ -559,7 +559,8 @@ class Room
         aux_data_packet.verb = cast(ushort)verb;
         if (client.user_id < 12) {
             aux_data_packet.flags = 1;
-        } else {
+        }
+        else {
             aux_data_packet.flags = 0;
         }
         aux_data_packet.ranking = 0;

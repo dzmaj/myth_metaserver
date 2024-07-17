@@ -7,92 +7,164 @@ import std.format;
 import vibe.data.json;
 
 struct RankCacheEntry {
-  int[] ranks;
-  MonoTime expiryTime;
+    int[] ranks;
+    MonoTime expiryTime;
+    ScoreInfo[string] scoreInfo;
 }
 
-struct RankResponseBody {
+struct ScoreInfo {
+    int points;
+    int wins;
+    int damageGiven;
+    int damageTaken;
+    int rank;
+    int games;
+    int topDamageGiven;
+    int topDamageTaken;
+    int topWins;
+    int topPoints;
+    string topRanked;
+}
+
+struct RankRespDto {
     int[] ranks;
+    ScoreInfo[string] scoreInfo;
 }
 
 class RankClient {
-  private HTTPClient client;
-  private Duration cacheTimeout;
-  private RankCacheEntry[int] cache;
-  private RankCacheEntry blank;
+    private HTTPClient client;
+    private Duration cacheTimeout;
+    private RankCacheEntry[int] cache;
+    private RankCacheEntry blank;
 
-  public this() {
-    client = new HTTPClient();
-    cacheTimeout = dur!"minutes"(1);
-    blank.ranks = [-1,-1,-1];
-    blank.expiryTime = MonoTime.currTime();
-    cache[-1] = blank;
-  }
-
-  // Method to make a GET request to the rank API endpoint
-  int[] getUserRank(int userId) @trusted {
-    // Check cache for existing rank
-    auto p = userId in cache;
-    if (p !is null) {
-        auto cachedRank = cache[userId];
-        if (cachedRank.ranks != null) {
-        auto rank = cachedRank.ranks;
-        auto expiry_time = cachedRank.expiryTime;
-        if (expiry_time > MonoTime.currTime()) {
-            // Cache entry is valid, return cached rank
-            return rank;
-        } else {
-            // Cache entry expired, remove it
-            cache.remove(userId);
-        }
-        }
+    public this() {
+        client = new HTTPClient();
+        cacheTimeout = dur!"minutes"(1);
+        blank.ranks = [-1, -1, -1];
+        blank.expiryTime = MonoTime.currTime();
+        cache[-1] = blank;
     }
-    
 
-    // Rank not found in cache, make the HTTP request
-    auto url = format("http://localhost:8080/rank-server/rest/caste/%d", userId);
-    int[] requestRank;
-
-    auto requester = delegate(scope HTTPClientRequest req) {
-        req.method = HTTPMethod.GET;
-        req.headers["bagrada-api-key"] = "test";
-    };
-    auto responder = delegate(scope HTTPClientResponse res) {
-        logInfo("Got Response");
-        if (res.statusCode == 200) {
-            auto json = res.readJson();
-            // Parse the response body to extract the rank array (implementation depends on API format)
-            auto ranks = deserializeJson!RankResponseBody(json).ranks;
-            logInfo("Got ranks");
-
-            // Update cache with new rank and expiry time
-            RankCacheEntry entry;
-            entry.ranks = ranks;
-            requestRank = ranks;
-            entry.expiryTime = MonoTime.currTime() + cacheTimeout;
-            cache[userId] = entry;
-        } else {
-            RankCacheEntry entry;
-            entry.ranks = blank.ranks;
-            entry.expiryTime = MonoTime.currTime() + cacheTimeout;
-            cache[userId] = entry;
-            requestRank = blank.ranks;
+    // Method to make a GET request to the rank API endpoint
+    int[] getUserRank(int userId) @trusted {
+        // Check cache for existing rank
+        auto p = userId in cache;
+        if (p !is null) {
+            auto cachedRank = cache[userId];
+            if (cachedRank.ranks !is null) {
+                auto rank = cachedRank.ranks;
+                auto expiry_time = cachedRank.expiryTime;
+                if (expiry_time > MonoTime.currTime()) {
+                    // Cache entry is valid, return cached rank
+                    return rank;
+                } else {
+                    // Cache entry expired, remove it
+                    cache.remove(userId);
+                }
+            }
         }
-    };
 
-    try {
-      requestHTTP(url, requester, responder); 
+        // Rank not found in cache, make the HTTP request
+        auto url = format("http://localhost:8080/rank-server/rest/caste/%d", userId);
+        int[] requestRank;
 
-      return requestRank;
-    } catch (Exception e) {
-      logInfo("Exception getting rank");
+        auto requester = delegate(scope HTTPClientRequest req) {
+            req.method = HTTPMethod.GET;
+            req.headers["bagrada-api-key"] = "test";
+        };
+        auto responder = delegate(scope HTTPClientResponse res) {
+            logInfo("Got Response");
+            if (res.statusCode == 200) {
+                auto json = res.readJson();
+                // Parse the response body to extract the rank array
+                auto playerData = deserializeJson!RankRespDto(json);
+                auto ranks = playerData.ranks;
+                auto scoreInfo = playerData.scoreInfo;
+                logInfo("Got ranks");
+
+                // Update cache with new rank and expiry time
+                RankCacheEntry entry;
+                entry.ranks = ranks;
+                entry.scoreInfo = scoreInfo;
+                requestRank = ranks;
+                entry.expiryTime = MonoTime.currTime() + cacheTimeout;
+                cache[userId] = entry;
+            } else {
+                RankCacheEntry entry;
+                entry.ranks = blank.ranks;
+                entry.expiryTime = MonoTime.currTime() + cacheTimeout;
+                cache[userId] = entry;
+                requestRank = blank.ranks;
+            }
+        };
+
+        try {
+            requestHTTP(url, requester, responder);
+            return requestRank;
+        } catch (Exception e) {
+            logInfo("Exception getting rank: %s".format(e.msg));
+        }
+        return blank.ranks;
     }
-    return blank.ranks;
-  }
 
-  // Function to parse the rank array from the response body (replace with your actual parsing logic)
-  private pure int[] parseIntArrayFromBody(string bodyString) {
-    // Replace this with code to parse the integer array from the response body based on your API format
-    return [-1, 1, -1]; // Example array
-  }
+    // Function to get ScoreInfo
+    ScoreInfo[string] getUserScoreInfo(int userId) @trusted {
+        auto p = userId in cache;
+        if (p !is null) {
+            auto cachedRank = cache[userId];
+            if (cachedRank.scoreInfo !is null) {
+                auto scoreInfo = cachedRank.scoreInfo;
+                auto expiry_time = cachedRank.expiryTime;
+                if (expiry_time > MonoTime.currTime()) {
+                    // Cache entry is valid, return cached scoreInfo
+                    return scoreInfo;
+                } else {
+                    // Cache entry expired, remove it
+                    cache.remove(userId);
+                }
+            }
+        }
+
+        // Rank not found in cache, make the HTTP request
+        auto url = format("http://localhost:8080/rank-server/rest/caste/%d", userId);
+        ScoreInfo[string] requestScoreInfo;
+
+        auto requester = delegate(scope HTTPClientRequest req) {
+            req.method = HTTPMethod.GET;
+            req.headers["bagrada-api-key"] = "test";
+        };
+        auto responder = delegate(scope HTTPClientResponse res) {
+            logInfo("Got Response");
+            if (res.statusCode == 200) {
+                auto json = res.readJson();
+                // Parse the response body to extract the rank array
+                auto playerData = deserializeJson!RankRespDto(json);
+                auto ranks = playerData.ranks;
+                auto scoreInfo = playerData.scoreInfo;
+                logInfo("Got scoreInfo");
+
+                // Update cache with new scoreInfo and expiry time
+                RankCacheEntry entry;
+                entry.ranks = ranks;
+                entry.scoreInfo = scoreInfo;
+                requestScoreInfo = scoreInfo;
+                entry.expiryTime = MonoTime.currTime() + cacheTimeout;
+                cache[userId] = entry;
+            } else {
+                RankCacheEntry entry;
+                entry.ranks = blank.ranks;
+                entry.expiryTime = MonoTime.currTime() + cacheTimeout;
+                cache[userId] = entry;
+                requestScoreInfo = blank.scoreInfo;
+            }
+        };
+
+        try {
+            requestHTTP(url, requester, responder);
+            return requestScoreInfo;
+        } catch (Exception e) {
+            logInfo("Exception getting scoreInfo: %s".format(e.msg));
+        }
+        return blank.scoreInfo;
+    }
 }

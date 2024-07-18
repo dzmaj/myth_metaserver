@@ -13,12 +13,14 @@ import room_server;
 import login_server;
 import private_api;
 import game_reporter_client;
+import rank_client;
 
 import vibe.core.core;
 import vibe.core.path;
 import vibe.core.concurrency;
 import vibe.core.net;
 import vibe.core.file;
+import vibe.core.log;
 
 import std.algorithm;
 import std.container;
@@ -31,6 +33,7 @@ import std.variant;
 import std.datetime;
 import std.file;
 import core.memory;
+import std.format;
 
 // TODO: Come up with some sort of great solution here
 // This is definitely a weird trade-off... if we make this send queue too small then it is actually
@@ -43,7 +46,6 @@ import core.memory;
 immutable size_t send_message_queue_size = 100;
 
 private immutable host_connection_test_timeout = 3.seconds;
-
 
 private enum player_mode
 {
@@ -101,8 +103,6 @@ struct start_game_packet
     int[2] unused;
 };
 
-
-
 final class RoomConnection : Connection
 {
     // NOTE: Must always be constructed on the fiber that owns the connection
@@ -113,6 +113,7 @@ final class RoomConnection : Connection
         m_room = room;
         m_client_deaf = false;
         m_game_reporter_client = new GameReporterClient();
+        m_rank_client = room.rank_client();
     }
 
     protected override void run_internal(MythSocket socket)
@@ -138,7 +139,9 @@ final class RoomConnection : Connection
             // NOTE: We don't currently use this data at all.
             // We always rely on the data that we exchanged during login to avoid any sort of room spoofing.
         }
-        catch (UnexpectedPacketTypeException e) {}
+        catch (UnexpectedPacketTypeException e)
+        {
+        }
 
         // Ok, now set up the send queue/task for broadcasts to this user
         m_send_task = runTask({
@@ -146,16 +149,13 @@ final class RoomConnection : Connection
             {
                 while (socket.connected) // "connected" is the appropriate check for *sending*
                 {
-                    receive((packet_type type, immutable(ubyte)[] payload)
-                            {
-                                socket.send_packet_payload(type, payload);
-                            },
-                            // Should never send anything other than the above mesage
-                            (Variant v)
-                            { 	
-                                log_message("INTERNAL ERROR: Unknown message type in send packet task!");
-                                assert(false);
-                            });
+                    receive((packet_type type, immutable(ubyte)[] payload) {
+                        socket.send_packet_payload(type, payload);
+                    },// Should never send anything other than the above mesage
+                        (Variant v) {
+                        log_message("INTERNAL ERROR: Unknown message type in send packet task!");
+                        assert(false);
+                    });
                     // No yield for now... it's important to drain these outgoing queues quickly so
                     // we want to avoid a lot of fiber switch thrash.
                     // That said, fairness might be a better policy here... hard to say.
@@ -170,10 +170,12 @@ final class RoomConnection : Connection
             }
         });
         // Make sure it never out-lives this function
-        scope(exit) {
-            if (m_send_task.running) m_send_task.interrupt();
+        scope (exit)
+        {
+            if (m_send_task.running)
+                m_send_task.interrupt();
         }
-        
+
         try
         {
             // Look up user
@@ -193,16 +195,18 @@ final class RoomConnection : Connection
             // Send back login successful packet
             room_login_successful_packet room_login_successful;
             room_login_successful.user_id = m_client.user_id;
-            room_login_successful.maximum_players_per_room = cast(ushort)m_room.maximum_clients();
+            room_login_successful.maximum_players_per_room = cast(ushort) m_room.maximum_clients();
             send_packet(packet_type._room_login_successful_packet, room_login_successful);
 
             // Also send a server message (not clear why this is necessary, but that's how the original does it)
-            send_packet(packet_type._server_message_packet, MythSocket.encode_server_message_payload(server_message_type._login_successful_msg));
+            send_packet(packet_type._server_message_packet, MythSocket.encode_server_message_payload(
+                    server_message_type._login_successful_msg));
 
             // And add ourselves to the room
-            scope(exit) m_room.remove_connection(this);
+            scope (exit)
+                m_room.remove_connection(this);
             m_room.add_connection(this); // NOTE: Blocks due to triggering data store operations
-        
+
             run_packet_loop(socket);
         }
         catch (InterruptException e)
@@ -234,89 +238,89 @@ final class RoomConnection : Connection
 
             switch (header.type)
             {
-                case packet_type._recording_stream_header_packet:
-                    handle_recording_stream_header(socket);
-                    break;
+            case packet_type._recording_stream_header_packet:
+                handle_recording_stream_header(socket);
+                break;
 
-                case packet_type._recording_stream_command_packet:
-                    handle_recording_stream_command(socket);
-                    break;
+            case packet_type._recording_stream_command_packet:
+                handle_recording_stream_command(socket);
+                break;
 
-                case packet_type._recording_stream_end_packet:
-                    handle_recording_stream_end(socket);
-                    break;
+            case packet_type._recording_stream_end_packet:
+                handle_recording_stream_end(socket);
+                break;
 
-                case packet_type._room_broadcast_packet:
-                case packet_type._directed_data_packet:
-                    handle_chat(socket, header.type);
-                    break;
+            case packet_type._room_broadcast_packet:
+            case packet_type._directed_data_packet:
+                handle_chat(socket, header.type);
+                break;
 
-                case packet_type._game_search_query_packet:
-                    handle_game_search_query(socket);
-                    break;
+            case packet_type._game_search_query_packet:
+                handle_game_search_query(socket);
+                break;
 
-                case packet_type._buddy_query_packet:
-                    handle_buddy_query(socket);
-                    break;
+            case packet_type._buddy_query_packet:
+                handle_buddy_query(socket);
+                break;
 
-                case packet_type._order_query_packet:
-                    handle_order_query(socket);
-                    break;
+            case packet_type._order_query_packet:
+                handle_order_query(socket);
+                break;
 
-                case packet_type._create_game_packet:
-                    handle_create_game(socket);
-                    break;
+            case packet_type._create_game_packet:
+                handle_create_game(socket);
+                break;
 
-                case packet_type._remove_game_packet:
-                    handle_remove_game(socket);
-                    break;
+            case packet_type._remove_game_packet:
+                handle_remove_game(socket);
+                break;
 
-                case packet_type._game_player_list_packet:
-                    handle_game_player_list(socket);
-                    break;
+            case packet_type._game_player_list_packet:
+                handle_game_player_list(socket);
+                break;
 
-                case packet_type._game_score_packet:
-                    handle_game_score(socket);
-                    break;
+            case packet_type._game_score_packet:
+                handle_game_score(socket);
+                break;
 
-                case packet_type._reset_game_packet:
-                    handle_reset_game(socket);
-                    break;
+            case packet_type._reset_game_packet:
+                handle_reset_game(socket);
+                break;
 
-                case packet_type._start_game_packet:
-                    handle_start_game(socket);
-                    break;
+            case packet_type._start_game_packet:
+                handle_start_game(socket);
+                break;
 
-                case packet_type._request_full_update_packet:
-                    socket.receive_packet(packet_type._request_full_update_packet); // Null payload
-                    m_room.send_full_room_update_to_client(this);
-                    break;
+            case packet_type._request_full_update_packet:
+                socket.receive_packet(packet_type._request_full_update_packet); // Null payload
+                m_room.send_full_room_update_to_client(this);
+                break;
 
-                case packet_type._set_player_mode_packet:
-                    handle_player_mode(socket);
-                    break;
+            case packet_type._set_player_mode_packet:
+                handle_player_mode(socket);
+                break;
 
-                case packet_type._set_player_data_packet:
-                    handle_player_data(socket);
-                    break;
+            case packet_type._set_player_data_packet:
+                handle_player_data(socket);
+                break;
 
-                case packet_type._player_info_query_packet:
-                    handle_player_info_query(socket);
-                    break;
+            case packet_type._player_info_query_packet:
+                handle_player_info_query(socket);
+                break;
 
-                case packet_type._update_player_information_packet:
-                    handle_update_player_info(socket);
-                    break;
+            case packet_type._update_player_information_packet:
+                handle_update_player_info(socket);
+                break;
 
-                case packet_type._keepalive_packet:
-                    // This already triggers a reset of our read timeout, so no need to do anything special here.
-                    socket.receive_packet_payload();
-                    break;
+            case packet_type._keepalive_packet:
+                // This already triggers a reset of our read timeout, so no need to do anything special here.
+                socket.receive_packet_payload();
+                break;
 
-                default:
-                    log_message("**** Packet %s unimplemented ****", header.type);
-                    socket.receive_packet_payload(); // Ignore packet
-                    break;
+            default:
+                log_message("**** Packet %s unimplemented ****", header.type);
+                socket.receive_packet_payload(); // Ignore packet
+                break;
             }
 
             // DEBUG: This has high overhead but helps us track down issues closer to where they actually happen
@@ -381,7 +385,6 @@ final class RoomConnection : Connection
         }
     }
 
-
     // Lobby-related packets
     //---------------------------------------------------------------------------------------------
 
@@ -398,19 +401,20 @@ final class RoomConnection : Connection
         bool broadcast;
         switch (type)
         {
-            case packet_type._room_broadcast_packet:
-                socket.receive_packet(packet_type._room_broadcast_packet, chat_packet, player_name, message);
-                broadcast = true;
-                break;
+        case packet_type._room_broadcast_packet:
+            socket.receive_packet(
+                packet_type._room_broadcast_packet, chat_packet, player_name, message);
+            broadcast = true;
+            break;
 
-            case packet_type._directed_data_packet:
-                socket.receive_packet(packet_type._directed_data_packet, target_user_id, local_echo, chat_packet, player_name, message);
-                broadcast = false;
-                break;
+        case packet_type._directed_data_packet:
+            socket.receive_packet(packet_type._directed_data_packet, target_user_id, local_echo, chat_packet, player_name, message);
+            broadcast = false;
+            break;
 
-            default:
-                // Shouldn't have called this function for other packet types
-                assert(false);
+        default:
+            // Shouldn't have called this function for other packet types
+            assert(false);
         }
 
         // Check if this is a command rather than a chat message
@@ -418,7 +422,7 @@ final class RoomConnection : Connection
         if (message.length > 1 && message[0] == '.' && isAlpha(message[1]))
         {
             // Split the command from the params at the first space
-            auto split_result = findSplit(message[1..$], " ");
+            auto split_result = findSplit(message[1 .. $], " ");
             m_room.dot_command(split_result[0], split_result[2], this, !broadcast, target_user_id);
         }
         else
@@ -479,7 +483,6 @@ final class RoomConnection : Connection
         socket.receive_packet_payload();
     }
 
-
     // Game-related packets
     // NOTE: For a bunch of these, each Myth client in a game will send their version (such as
     // endgame scores). For our purposes, we currently ignore any of these packets that were not
@@ -522,7 +525,8 @@ final class RoomConnection : Connection
                         auto timer = setTimer(host_connection_test_timeout, {
                             task.interrupt();
                         });
-                        scope(exit) timer.stop();
+                        scope (exit)
+                            timer.stop();
                         test_connection = connectTCP(socket.remote_address_string(), port);
                     }
 
@@ -531,18 +535,21 @@ final class RoomConnection : Connection
 
                     test_connection.close();
 
-                    log_message("Successfully connected to host ID %d: disabling host proxy", m_client.user_id);
+                    log_message("Successfully connected to host ID %d: disabling host proxy", m_client
+                            .user_id);
                     m_client.set_host_proxy_state(ClientHostProxyState.off);
                 }
                 catch (Exception e)
                 {
-                    log_message("Failed to connect to host ID %d: enabling host proxy", m_client.user_id);
+                    log_message("Failed to connect to host ID %d: enabling host proxy", m_client
+                            .user_id);
                     m_client.set_host_proxy_state(ClientHostProxyState.on);
                 }
             }
 
             // If supported by the client and required, enable host proxy
-            if (m_client.supports_host_proxies && m_client.host_proxy_state == ClientHostProxyState.on) 
+            if (m_client.supports_host_proxies && m_client.host_proxy_state == ClientHostProxyState
+                .on)
             {
                 // Acquire a host proxy, if available
                 // Exceptions/errors here are non-critical... just don't enable the proxy
@@ -594,7 +601,8 @@ final class RoomConnection : Connection
         if (!m_hosted_game)
         {
             throw new ClientProtocolException("Received start game packet, but user ID "
-                                              ~ to!string(m_client.user_id) ~ " is not hosting a game");
+                    ~ to!string(
+                        m_client.user_id) ~ " is not hosting a game");
         }
 
         start_game_packet start_game_data;
@@ -635,7 +643,7 @@ final class RoomConnection : Connection
         // NOTE: Regular score packet now followed by variable-sized player payload
         game_score_packet game_score;
         bungie_net_game_standings_player[] players;
-        
+
         socket.receive_packet(packet_type._game_score_packet, game_score, players);
 
         /*
@@ -655,7 +663,8 @@ final class RoomConnection : Connection
             auto result = m_room.report_game_result(game_result);
             if (result.success)
             {
-                log_message("Successfully reported game scores from user ID %s: game ID %d", m_client.user_id, result.game_id);
+                log_message("Successfully reported game scores from user ID %s: game ID %d", m_client.user_id, result
+                        .game_id);
 
                 // If a recording was saved for the game, move it to the appropriate location
                 if (!m_hosted_game_recording_file.empty)
@@ -663,21 +672,25 @@ final class RoomConnection : Connection
                     // TODO: Rename the recording based on the game ID we got from submitting the result
                     auto target_path = m_room.config().recordings_path ~ "public/";
                     if (!exists(target_path))
-			            mkdirRecurse(target_path);
+                        mkdirRecurse(target_path);
 
-                    auto target_file = NativePath(target_path ~ m_hosted_game_recording_file.head.name);
+                    auto target_file = NativePath(
+                        target_path ~ m_hosted_game_recording_file.head.name);
                     moveFile(m_hosted_game_recording_file, target_file, true); // Allow copy+delete as fallback
                     log_message("Recording moved to %s", target_file);
 
                     m_hosted_game_recording_file = NativePath();
                 }
                 //Post to rank server
-                try {
+                try
+                {
                     m_game_reporter_client.reportGame(result.game_id);
-                } catch (Exception e) {
-
                 }
-                
+                catch (Exception e)
+                {
+                    logInfo("Exception reporting game: %s".format(e.msg));
+                }
+
             }
             else
             {
@@ -685,7 +698,6 @@ final class RoomConnection : Connection
             }
         }
     }
-
 
     // Recording-related packets
     //---------------------------------------------------------------------------------------------
@@ -704,7 +716,8 @@ final class RoomConnection : Connection
             {
                 // NOTE: Could just log and ignore it instead, but let's be rude to tease out any bugs
                 throw new ClientProtocolException("Received recording stream header packet, but user ID "
-                                                  ~ to!string(m_client.user_id) ~ " is not hosting a game");
+                        ~ to!string(
+                            m_client.user_id) ~ " is not hosting a game");
             }
         }
 
@@ -718,15 +731,17 @@ final class RoomConnection : Connection
         if (!m_hosted_game_recording || !m_hosted_game)
         {
             throw new ClientProtocolException("Received recording stream header packet, but user ID "
-                                              ~ to!string(m_client.user_id) ~ " is not hosting a recorded game");
+                    ~ to!string(
+                        m_client.user_id) ~ " is not hosting a recorded game");
         }
         m_hosted_game_recording.append_recording_command(socket.receive_packet_payload());
 
-        if (!m_sent_rec_header) {
-            m_game_reporter_client.reportGameRecordingStart(m_hosted_game_recording.recording_header());
+        if (!m_sent_rec_header)
+        {
+            m_game_reporter_client.reportGameRecordingStart(
+                m_hosted_game_recording.recording_header());
             m_sent_rec_header = true;
         }
-        
 
     }
 
@@ -735,27 +750,28 @@ final class RoomConnection : Connection
         if (!m_hosted_game_recording || !m_hosted_game)
         {
             throw new ClientProtocolException("Received recording stream end packet, but user ID "
-                                              ~ to!string(m_client.user_id) ~ " is not hosting a recorded game");
+                    ~ to!string(
+                        m_client.user_id) ~ " is not hosting a recorded game");
         }
 
         int end_game_time;
         socket.receive_packet(packet_type._recording_stream_end_packet, end_game_time);
 
         // Either way we can close the recording stream after this function completes
-        scope(exit) m_hosted_game_recording = null;
+        scope (exit)
+            m_hosted_game_recording = null;
 
         auto config = m_room.config();
         m_hosted_game_recording_file =
             m_hosted_game_recording.end_recording(end_game_time, m_client.user_id,
-                                                  config.recordings_path,
-                                                  config.recordings_prefix,
-                                                  config.recordings_ext);
+                config.recordings_path,
+                config.recordings_prefix,
+                config.recordings_ext);
 
         // If successful, report the file name of the recording to the game result
         m_hosted_game.set_recording_file_name(m_hosted_game_recording_file.head.name);
         m_sent_rec_header = false;
     }
-
 
     // Player-related packets
     //---------------------------------------------------------------------------------------------
@@ -784,101 +800,212 @@ final class RoomConnection : Connection
 
     private void handle_player_info_query(MythSocket socket)
     {
-        uint user_id = socket.receive_packet_typed!uint(packet_type._player_info_query_packet);
+    uint user_id = socket.receive_packet_typed!uint(packet_type._player_info_query_packet);
 
-        // Look up client in room
-        auto client_connection = m_room.find_client_in_room(user_id);
-        if (!client_connection.isNull())
+    // Look up client in room
+    auto client_connection = m_room.find_client_in_room(user_id);
+    if (!client_connection.isNull())
+    {
+        auto client = client_connection.get().client;
+        player_info_packet info;
+
+        string login = to!string(client.user_id);
+        string order_name = "";
+
+        info.primary_color = client.primary_color;
+        info.secondary_color = client.secondary_color;
+        info.icon_index = client.coat_of_arms_bitmap_index;
+        if (client.user_id < 12)
         {
-            auto client = client_connection.get().client;
-            player_info_packet info;
-
-            string login = to!string(client.user_id);
-            // use login instead of userid, will need a little more db tweaks for this
-            // string login = client.player_data.user_name;
-            string order_name = "";
-
-            info.primary_color = client.primary_color;
-            info.secondary_color = client.secondary_color;
-            info.icon_index = client.coat_of_arms_bitmap_index;
-            if (client.user_id < 12) {
-                info.administrator_flag = true;
-                info.bungie_employee_flag = true;
-            } else {
-                info.administrator_flag = false;
-                info.bungie_employee_flag = false;
-            }
-            
-            
-
-            // Defaults are set up to work ok here
-            auto server_info = m_login_server.data_store.get_player_info(client.user_id);
-
-            if (client.guest)
-                login = "Guest";
-
-            // Fill in stats data
-            {
-                // For "Total" stats myth uses info.ranked_score_datum and info.overall_rank_data.ranked_game_data
-                // For per-scoring stats myth uses info.ranked_score_datum_by_game_type[] and info.overall_rank_data.ranked_game_data_by_game_type[]
-
-                info.ranked_score_datum.games_played      = cast(short)server_info.stats_total.games;
-                info.ranked_score_datum.numerical_ranking = cast(short)server_info.stats_total.rank;
-                info.overall_rank_data.total_users        = server_info.stats_total.total_player_count;
-
-                // String into null terminated - must manually convert to mac roman since it's not a "string", but a char array
-                {
-                    ubyte[] encoded_player = string_to_mac_roman(server_info.stats_total.top_player_user_name);
-                    size_t length = min(encoded_player.length, info.overall_rank_data.ranked_game_data.top_ranked_player.sizeof - 1);
-                    info.overall_rank_data.ranked_game_data.top_ranked_player[0..length] = encoded_player[0..length];
-                    info.overall_rank_data.ranked_game_data.top_ranked_player[length] = 0; // Null terminate
-                }
-
-                // TODO: Can clean this up with CTFE or similar
-                // NOTE: These two fields being "short"s could be a problem in the long run :S
-                info.ranked_score_datum.points                                   = cast(short)server_info.stats_total.points.val;
-                info.overall_rank_data.ranked_game_data.points.best              = server_info.stats_total.points.max;
-                info.overall_rank_data.ranked_game_data.points.average           = server_info.stats_total.points.avg;
-
-                info.ranked_score_datum.wins                                     = cast(short)server_info.stats_total.wins.val;
-                info.overall_rank_data.ranked_game_data.wins.best                = server_info.stats_total.wins.max;
-                info.overall_rank_data.ranked_game_data.wins.average             = server_info.stats_total.wins.avg;
-
-                info.ranked_score_datum.damage_inflicted                         = server_info.stats_total.damage_given.val;
-                info.overall_rank_data.ranked_game_data.damage_inflicted.best    = server_info.stats_total.damage_given.max;
-                info.overall_rank_data.ranked_game_data.damage_inflicted.average = server_info.stats_total.damage_given.avg;
-
-                info.ranked_score_datum.damage_received                          = server_info.stats_total.damage_taken.val;
-                info.overall_rank_data.ranked_game_data.damage_received.best     = server_info.stats_total.damage_taken.max;
-                info.overall_rank_data.ranked_game_data.damage_received.average  = server_info.stats_total.damage_taken.avg;
-
-                // TODO: Then the same as an array for each game type, etc.
-            }
-
-            send_packet(packet_type._player_info_packet,
-                        info, login, client.player_data.nick_name, order_name,
-                        server_info.city, server_info.state, server_info.country, server_info.quote);
+            info.administrator_flag = true;
+            info.bungie_employee_flag = true;
         }
         else
         {
-            // Should we still send a blank response?
+            info.administrator_flag = false;
+            info.bungie_employee_flag = false;
         }
+
+        if (client.guest)
+            login = "Guest";
+
+        // Get score info from game reporter client
+        auto score_info = m_rank_client.getUserScoreInfo(client.user_id);
+
+        // Fill in stats data
+        {
+            // For "Total" stats myth uses info.ranked_score_datum and info.overall_rank_data.ranked_game_data
+            // For per-scoring stats myth uses info.ranked_score_datum_by_game_type[] and info.overall_rank_data.ranked_game_data_by_game_type[]
+
+            info.ranked_score_datum.games_played = cast(short) score_info["1"].games;
+            info.ranked_score_datum.numerical_ranking = cast(short) score_info["1"].rank;
+
+            // String into null terminated - must manually convert to mac roman since it's not a "string", but a char array
+            {
+                ubyte[] encoded_player = string_to_mac_roman(score_info["1"].topRanked);
+                size_t length = min(encoded_player.length, info.overall_rank_data.ranked_game_data.top_ranked_player.sizeof - 1);
+                info.overall_rank_data.ranked_game_data.top_ranked_player[0 .. length] = encoded_player[0 .. length];
+                info.overall_rank_data.ranked_game_data.top_ranked_player[length] = 0; // Null terminate
+            }
+
+            info.ranked_score_datum.points = cast(short) score_info["1"].points;
+            info.overall_rank_data.ranked_game_data.points.best = score_info["1"].topPoints;
+            info.overall_rank_data.ranked_game_data.points.average = score_info["1"].games > 0 ? score_info["1"].points / score_info["1"].games : 0;
+
+            info.ranked_score_datum.wins = cast(short) score_info["1"].wins;
+            info.overall_rank_data.ranked_game_data.wins.best = score_info["1"].topWins;
+            info.overall_rank_data.ranked_game_data.wins.average = score_info["1"].games > 0 ? score_info["1"].wins / score_info["1"].games : 0;
+
+            info.ranked_score_datum.damage_inflicted = score_info["1"].damageGiven;
+            info.overall_rank_data.ranked_game_data.damage_inflicted.best = score_info["1"].topDamageGiven;
+            info.overall_rank_data.ranked_game_data.damage_inflicted.average = score_info["1"].games > 0 ? score_info["1"].damageGiven / score_info["1"].games : 0;
+
+            info.ranked_score_datum.damage_received = score_info["1"].damageTaken;
+            info.overall_rank_data.ranked_game_data.damage_received.best = score_info["1"].topDamageTaken;
+            info.overall_rank_data.ranked_game_data.damage_received.average = score_info["1"].games > 0 ? score_info["1"].damageTaken / score_info["1"].games : 0;
+
+            // Iterate a counter to keep track of which stats we should pull (i.e. games_played_1)
+            short counter = 1;
+
+            // Loop over the 6 game types and report stats for each. This is the order that these data structures show up in Myth for whatever reason
+            foreach (i; [1, 2, 4, 5, 0, 7])
+            {
+                // String into null terminated - must manually convert to mac roman since it's not a "string", but a char array
+                {
+                    ubyte[] encoded_player = string_to_mac_roman(score_info[to!string(i)].topRanked);
+                    size_t length = min(encoded_player.length, info.overall_rank_data.ranked_game_data_by_game_type[i].top_ranked_player.sizeof - 1);
+                    info.overall_rank_data.ranked_game_data_by_game_type[i].top_ranked_player[0 .. length] = encoded_player[0 .. length];
+                    info.overall_rank_data.ranked_game_data_by_game_type[i].top_ranked_player[length] = 0; // Null terminate
+                }
+
+                info.ranked_score_datum_by_game_type[i].numerical_ranking = cast(short) score_info[to!string(i)].rank;
+
+                info.ranked_score_datum_by_game_type[i].games_played = cast(short) score_info[to!string(i)].games;
+
+                info.ranked_score_datum_by_game_type[i].wins = cast(short) score_info[to!string(i)].wins;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].wins.best = score_info[to!string(i)].topWins;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].wins.average = score_info[to!string(i)].games > 0 ? score_info[to!string(i)].wins / score_info[to!string(i)].games : 0;
+
+                info.ranked_score_datum_by_game_type[i].points = cast(short) score_info[to!string(i)].points;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].points.best = score_info[to!string(i)].topPoints;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].points.average = score_info[to!string(i)].games > 0 ? score_info[to!string(i)].points / score_info[to!string(i)].games : 0;
+
+                info.ranked_score_datum_by_game_type[i].damage_inflicted = score_info[to!string(i)].damageGiven;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].damage_inflicted.best = score_info[to!string(i)].topDamageGiven;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].damage_inflicted.average = score_info[to!string(i)].games > 0 ? score_info[to!string(i)].damageGiven / score_info[to!string(i)].games : 0;
+
+                info.ranked_score_datum_by_game_type[i].damage_received = score_info[to!string(i)].damageTaken;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].damage_received.best = score_info[to!string(i)].topDamageTaken;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].damage_received.average = score_info[to!string(i)].games > 0 ? score_info[to!string(i)].damageTaken / score_info[to!string(i)].games : 0;
+
+                counter++;
+            }
+        }
+
+        logInfo("Player Info Packet: %s", playerInfoPacketToString(info));
     }
+}
+
+string playerInfoPacketToString(player_info_packet info)
+{
+    return format(
+        "primary_color: %s, secondary_color: %s, icon_index: %s, administrator_flag: %s, bungie_employee_flag: %s, ranked_score_datum: %s, overall_rank_data: %s",
+        info.primary_color,
+        info.secondary_color,
+        info.icon_index,
+        info.administrator_flag,
+        info.bungie_employee_flag,
+        rankedScoreDatumToString(info.ranked_score_datum),
+        overallRankDataToString(info.overall_rank_data)
+    );
+}
+
+string rankedScoreDatumToString(bungie_net_player_score_datum datum)
+{
+    return format(
+        "games_played: %s, numerical_ranking: %s, points: %s, wins: %s, damage_inflicted: %s, damage_received: %s",
+        datum.games_played,
+        datum.numerical_ranking,
+        datum.points,
+        datum.wins,
+        datum.damage_inflicted,
+        datum.damage_received
+    );
+}
+
+string overallRankDataToString(overall_ranking_data data)
+{
+    return format(
+        "ranked_game_data: %s, ranked_game_data_by_game_type: %s",
+        rankedGameDataToString(data.ranked_game_data),
+        rankedGameDataByGameTypeToString(data.ranked_game_data_by_game_type)
+    );
+}
+
+string rankedGameDataToString(game_rank_data data)
+{
+    return format(
+        "points: %s, wins: %s, damage_inflicted: %s, damage_received: %s, top_ranked_player: %s",
+        rankingDataToString(data.points),
+        rankingDataToString(data.wins),
+        rankingDataToString(data.damage_inflicted),
+        rankingDataToString(data.damage_received),
+        data.top_ranked_player
+    );
+}
+
+string rankingDataToString(ranking_data data)
+{
+    return format(
+        "average: %s, best: %s",
+        data.average,
+        data.best
+    );
+}
+
+string rankedGameDataByGameTypeToString(game_rank_data[] data)
+{
+    string result = "";
+    foreach (datum; data)
+    {
+        result ~= format(
+            "[points: %s, wins: %s, damage_inflicted: %s, damage_received: %s, top_ranked_player: %s]",
+            rankingDataToString(datum.points),
+            rankingDataToString(datum.wins),
+            rankingDataToString(datum.damage_inflicted),
+            rankingDataToString(datum.damage_received),
+            datum.top_ranked_player
+        );
+    }
+    return result;
+}
+
 
     private void handle_update_player_info(MythSocket socket)
     {
         string city, state, country, quote;
         socket.receive_packet(packet_type._update_player_information_packet,
-                              city, state, country, quote);
+            city, state, country, quote);
 
         // We ignore guest player info update attempts...
         if (!m_client.guest)
             m_login_server.data_store.set_player_info(m_client.user_id, city, state, country, quote);
     }
 
-    @property public pure nothrow uint remote_address_ipv4() const { return m_remote_address_ipv4; }
-    @property public pure nothrow const(Game) visible_hosted_game() const { return m_hosted_game; }
-    @property public pure nothrow inout(RoomClient) client() inout { return m_client; }
+    @property public pure nothrow uint remote_address_ipv4() const
+    {
+        return m_remote_address_ipv4;
+    }
+
+    @property public pure nothrow const(Game) visible_hosted_game() const
+    {
+        return m_hosted_game;
+    }
+
+    @property public pure nothrow inout(RoomClient) client() inout
+    {
+        return m_client;
+    }
 
     private LoginServer m_login_server;
     private Room m_room;
@@ -889,6 +1016,7 @@ final class RoomConnection : Connection
     private NativePath m_hosted_game_recording_file;
     private GameReporterClient m_game_reporter_client;
     private bool m_sent_rec_header = false;
+    private RankClient m_rank_client;
 
     private bool m_client_deaf;
 

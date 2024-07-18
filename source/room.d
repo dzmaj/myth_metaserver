@@ -657,7 +657,8 @@ class Room
     @property public pure nothrow RoomType room_type() const { return m_room_info.room_type; }
     @property public pure nothrow int maximum_clients() const { return m_maximum_clients; }
     @property public pure nothrow RoomServer room_server() { return m_room_server; }
-        
+    @property public pure nothrow RankClient rank_client() { return m_rank_client; }
+
     private LoginServer m_login_server;
     private RoomServer m_room_server;
     private RankClient m_rank_client;

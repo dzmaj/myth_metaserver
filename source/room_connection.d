@@ -829,6 +829,7 @@ final class RoomConnection : Connection
         if (client.guest)
             login = "Guest";
 
+        auto server_info = m_login_server.data_store.get_player_info(client.user_id);
         // Get score info from game reporter client
         auto score_info = m_rank_client.getUserScoreInfo(client.user_id);
 
@@ -837,70 +838,100 @@ final class RoomConnection : Connection
             // For "Total" stats myth uses info.ranked_score_datum and info.overall_rank_data.ranked_game_data
             // For per-scoring stats myth uses info.ranked_score_datum_by_game_type[] and info.overall_rank_data.ranked_game_data_by_game_type[]
 
-            info.ranked_score_datum.games_played = cast(short) score_info["1"].games;
-            info.ranked_score_datum.numerical_ranking = cast(short) score_info["1"].rank;
+            info.ranked_score_datum.games_played = cast(short) score_info["0"].games;
+            info.ranked_score_datum.numerical_ranking = cast(short) score_info["0"].rank;
+            //TODO                 info.overall_rank_data.total_users        = server_info.stats_total.total_player_count;
+            info.overall_rank_data.total_users = 100;
 
             // String into null terminated - must manually convert to mac roman since it's not a "string", but a char array
             {
-                ubyte[] encoded_player = string_to_mac_roman(score_info["1"].topRanked);
+                ubyte[] encoded_player = string_to_mac_roman(score_info["0"].topRanked);
                 size_t length = min(encoded_player.length, info.overall_rank_data.ranked_game_data.top_ranked_player.sizeof - 1);
-                info.overall_rank_data.ranked_game_data.top_ranked_player[0 .. length] = encoded_player[0 .. length];
+                info.overall_rank_data.ranked_game_data.top_ranked_player[0..length] = encoded_player[0..length];
                 info.overall_rank_data.ranked_game_data.top_ranked_player[length] = 0; // Null terminate
             }
 
-            info.ranked_score_datum.points = cast(short) score_info["1"].points;
-            info.overall_rank_data.ranked_game_data.points.best = score_info["1"].topPoints;
-            info.overall_rank_data.ranked_game_data.points.average = score_info["1"].games > 0 ? score_info["1"].points / score_info["1"].games : 0;
+            info.ranked_score_datum.points = cast(short) score_info["0"].points;
+            info.overall_rank_data.ranked_game_data.points.best = score_info["0"].topPoints;
+            info.overall_rank_data.ranked_game_data.points.average = score_info["0"].points;
 
-            info.ranked_score_datum.wins = cast(short) score_info["1"].wins;
-            info.overall_rank_data.ranked_game_data.wins.best = score_info["1"].topWins;
-            info.overall_rank_data.ranked_game_data.wins.average = score_info["1"].games > 0 ? score_info["1"].wins / score_info["1"].games : 0;
+            info.ranked_score_datum.wins = cast(short) score_info["0"].wins;
+            info.overall_rank_data.ranked_game_data.wins.best = score_info["0"].topWins;
+            info.overall_rank_data.ranked_game_data.wins.average = score_info["0"].wins;
 
-            info.ranked_score_datum.damage_inflicted = score_info["1"].damageGiven;
-            info.overall_rank_data.ranked_game_data.damage_inflicted.best = score_info["1"].topDamageGiven;
-            info.overall_rank_data.ranked_game_data.damage_inflicted.average = score_info["1"].games > 0 ? score_info["1"].damageGiven / score_info["1"].games : 0;
+            info.ranked_score_datum.damage_inflicted = score_info["0"].damageGiven;
+            info.overall_rank_data.ranked_game_data.damage_inflicted.best = score_info["0"].topDamageGiven;
+            info.overall_rank_data.ranked_game_data.damage_inflicted.average = score_info["0"].damageGiven;
 
-            info.ranked_score_datum.damage_received = score_info["1"].damageTaken;
-            info.overall_rank_data.ranked_game_data.damage_received.best = score_info["1"].topDamageTaken;
-            info.overall_rank_data.ranked_game_data.damage_received.average = score_info["1"].games > 0 ? score_info["1"].damageTaken / score_info["1"].games : 0;
+            info.ranked_score_datum.damage_received = score_info["0"].damageTaken;
+            info.overall_rank_data.ranked_game_data.damage_received.best = score_info["0"].topDamageTaken;
+            info.overall_rank_data.ranked_game_data.damage_received.average = score_info["0"].damageTaken;
 
             // Iterate a counter to keep track of which stats we should pull (i.e. games_played_1)
             short counter = 1;
 
             // Loop over the 6 game types and report stats for each. This is the order that these data structures show up in Myth for whatever reason
-            foreach (i; [1, 2, 4, 5, 0, 7])
+            /** 
+            foreach(i; [1, 2, 4, 5, 0, 7])
+            0   |    Total               0
+            1   1   Duel                3
+            2   2   FFA                 4
+            3   4   Small 2-Team        6
+            4   5   Large 2-Team        7
+            5   0   Team FFA            
+            6   7   WWII                2
+            7   ?   Other 3rd Party     5
+            8   ?   Coop                1
+            */
+            int[int] map = [
+                1:3,
+                2:4,
+                4:6,
+                5:7,
+                7:2
+                // not sure on 3rd party and coop yet
+
+            ];
+
+            foreach (i, j; map)
             {
+                
+
                 // String into null terminated - must manually convert to mac roman since it's not a "string", but a char array
                 {
-                    ubyte[] encoded_player = string_to_mac_roman(score_info[to!string(i)].topRanked);
-                    size_t length = min(encoded_player.length, info.overall_rank_data.ranked_game_data_by_game_type[i].top_ranked_player.sizeof - 1);
+                    ubyte[] encoded_player = string_to_mac_roman(score_info[to!string(j)].topRanked);
+                    size_t length = min(encoded_player.length, info.overall_rank_data.ranked_game_data.top_ranked_player.sizeof - 1);
                     info.overall_rank_data.ranked_game_data_by_game_type[i].top_ranked_player[0 .. length] = encoded_player[0 .. length];
                     info.overall_rank_data.ranked_game_data_by_game_type[i].top_ranked_player[length] = 0; // Null terminate
                 }
 
-                info.ranked_score_datum_by_game_type[i].numerical_ranking = cast(short) score_info[to!string(i)].rank;
+                info.ranked_score_datum_by_game_type[i].numerical_ranking = cast(short) score_info[to!string(j)].rank;
 
-                info.ranked_score_datum_by_game_type[i].games_played = cast(short) score_info[to!string(i)].games;
+                info.ranked_score_datum_by_game_type[i].games_played = cast(short) score_info[to!string(j)].games;
 
-                info.ranked_score_datum_by_game_type[i].wins = cast(short) score_info[to!string(i)].wins;
-                info.overall_rank_data.ranked_game_data_by_game_type[i].wins.best = score_info[to!string(i)].topWins;
-                info.overall_rank_data.ranked_game_data_by_game_type[i].wins.average = score_info[to!string(i)].games > 0 ? score_info[to!string(i)].wins / score_info[to!string(i)].games : 0;
+                info.ranked_score_datum_by_game_type[i].wins = cast(short) score_info[to!string(j)].wins;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].wins.best = score_info[to!string(j)].topWins;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].wins.average = score_info[to!string(j)].wins;
 
-                info.ranked_score_datum_by_game_type[i].points = cast(short) score_info[to!string(i)].points;
-                info.overall_rank_data.ranked_game_data_by_game_type[i].points.best = score_info[to!string(i)].topPoints;
-                info.overall_rank_data.ranked_game_data_by_game_type[i].points.average = score_info[to!string(i)].games > 0 ? score_info[to!string(i)].points / score_info[to!string(i)].games : 0;
+                info.ranked_score_datum_by_game_type[i].points = cast(short) score_info[to!string(j)].points;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].points.best = score_info[to!string(j)].topPoints;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].points.average = score_info[to!string(j)].points;
 
-                info.ranked_score_datum_by_game_type[i].damage_inflicted = score_info[to!string(i)].damageGiven;
-                info.overall_rank_data.ranked_game_data_by_game_type[i].damage_inflicted.best = score_info[to!string(i)].topDamageGiven;
-                info.overall_rank_data.ranked_game_data_by_game_type[i].damage_inflicted.average = score_info[to!string(i)].games > 0 ? score_info[to!string(i)].damageGiven / score_info[to!string(i)].games : 0;
+                info.ranked_score_datum_by_game_type[i].damage_inflicted = score_info[to!string(j)].damageGiven;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].damage_inflicted.best = score_info[to!string(j)].topDamageGiven;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].damage_inflicted.average = score_info[to!string(j)].damageGiven;
 
-                info.ranked_score_datum_by_game_type[i].damage_received = score_info[to!string(i)].damageTaken;
-                info.overall_rank_data.ranked_game_data_by_game_type[i].damage_received.best = score_info[to!string(i)].topDamageTaken;
-                info.overall_rank_data.ranked_game_data_by_game_type[i].damage_received.average = score_info[to!string(i)].games > 0 ? score_info[to!string(i)].damageTaken / score_info[to!string(i)].games : 0;
+                info.ranked_score_datum_by_game_type[i].damage_received = score_info[to!string(j)].damageTaken;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].damage_received.best = score_info[to!string(j)].topDamageTaken;
+                info.overall_rank_data.ranked_game_data_by_game_type[i].damage_received.average = score_info[to!string(j)].damageTaken;
 
                 counter++;
             }
         }
+
+        send_packet(packet_type._player_info_packet,
+            info, login, client.player_data.nick_name, order_name,
+            server_info.city, server_info.state, server_info.country, server_info.quote);
 
         logInfo("Player Info Packet: %s", playerInfoPacketToString(info));
     }

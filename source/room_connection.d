@@ -841,7 +841,8 @@ final class RoomConnection : Connection
             info.ranked_score_datum.games_played = cast(short) score_info["0"].games;
             info.ranked_score_datum.numerical_ranking = cast(short) score_info["0"].rank;
             //TODO                 info.overall_rank_data.total_users        = server_info.stats_total.total_player_count;
-            info.overall_rank_data.total_users = 100;
+            int rankedPlayerCount = m_rank_client.getRankedPlayerCount();
+            info.overall_rank_data.total_users = rankedPlayerCount;
 
             // String into null terminated - must manually convert to mac roman since it's not a "string", but a char array
             {
@@ -867,9 +868,6 @@ final class RoomConnection : Connection
             info.overall_rank_data.ranked_game_data.damage_received.best = score_info["0"].topDamageTaken;
             info.overall_rank_data.ranked_game_data.damage_received.average = score_info["0"].damageTaken;
 
-            // Iterate a counter to keep track of which stats we should pull (i.e. games_played_1)
-            short counter = 1;
-
             // Loop over the 6 game types and report stats for each. This is the order that these data structures show up in Myth for whatever reason
             /** 
             foreach(i; [1, 2, 4, 5, 0, 7])
@@ -882,14 +880,55 @@ final class RoomConnection : Connection
             6   7   WWII                2
             7   ?   Other 3rd Party     5
             8   ?   Coop                1
+
+            //Original string list
+            Total
+            Steal the Bacon
+            Last Man on the Hill
+            Flag Rally
+            Capture the Flag
+            Body Count
+            Territories
+            Captures
+            King of the Hill
+            Stampede!
+            Assassin
+            Hunting
+            Balls On Parade
+            Scavenger Hunt
+            King of the Hill (TFL)
+            King of the Map
+            Custom
+
+            // Game types
+            BODY_COUNT(0),
+            STEAL_THE_BACON(1),
+            LAST_MAN_ON_THE_HILL(2),
+            SCAVENGER_HUNT(3),
+            FLAG_RALLY(4),
+            CAPTURE_THE_FLAG(5),
+            BALLS_ON_PARADE(6),
+            TERRITORIES(7),
+            CAPTURES(8),
+            KING_OF_THE_HILL(9),
+            STAMPEDE(10),
+            ASSASSIN(11),
+            HUNTING(12),
+            CUSTOM(13),
+            KING_OF_THE_HILL_TFL(14),
+            KING_OF_THE_MAP(15);
+
             */
             int[int] map = [
                 1:3,
                 2:4,
                 4:6,
                 5:7,
-                7:2
-                // not sure on 3rd party and coop yet
+                7:2,
+                // not sure if ww2/3p match up correctly yet
+                8:5,
+                9:1
+                
 
             ];
 
@@ -924,8 +963,6 @@ final class RoomConnection : Connection
                 info.ranked_score_datum_by_game_type[i].damage_received = score_info[to!string(j)].damageTaken;
                 info.overall_rank_data.ranked_game_data_by_game_type[i].damage_received.best = score_info[to!string(j)].topDamageTaken;
                 info.overall_rank_data.ranked_game_data_by_game_type[i].damage_received.average = score_info[to!string(j)].damageTaken;
-
-                counter++;
             }
         }
 

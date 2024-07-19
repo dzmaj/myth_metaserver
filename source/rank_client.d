@@ -29,6 +29,7 @@ struct ScoreInfo {
 struct RankRespDto {
     int[] ranks;
     ScoreInfo[string] scoreInfo;
+    int rankCount;
 }
 
 class RankClient {
@@ -36,6 +37,7 @@ class RankClient {
     private Duration cacheTimeout;
     private RankCacheEntry[int] cache;
     private RankCacheEntry blank;
+    private int rankedPlayerCount;
 
     public this() {
         client = new HTTPClient();
@@ -43,7 +45,10 @@ class RankClient {
         blank.ranks = [-1, -1, -1];
         blank.expiryTime = MonoTime.currTime();
         cache[-1] = blank;
+        rankedPlayerCount = 0;
     }
+
+    @property public pure nothrow int getRankedPlayerCount() {return rankedPlayerCount;}
 
     // Method to make a GET request to the rank API endpoint
     int[] getUserRank(int userId) @trusted {
@@ -80,6 +85,7 @@ class RankClient {
                 auto playerData = deserializeJson!RankRespDto(json);
                 auto ranks = playerData.ranks;
                 auto scoreInfo = playerData.scoreInfo;
+                rankedPlayerCount = playerData.rankCount;
                 logInfo("Got ranks");
 
                 // Update cache with new rank and expiry time

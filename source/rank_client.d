@@ -10,6 +10,7 @@ struct RankCacheEntry {
     int[] ranks;
     MonoTime expiryTime;
     ScoreInfo[string] scoreInfo;
+    int rankCount;
 }
 
 struct ScoreInfo {
@@ -44,6 +45,7 @@ class RankClient {
         cacheTimeout = dur!"minutes"(1);
         blank.ranks = [-1, -1, -1];
         blank.expiryTime = MonoTime.currTime();
+        blank.rankCount = 0;
         cache[-1] = blank;
         rankedPlayerCount = 0;
     }
@@ -85,13 +87,14 @@ class RankClient {
                 auto playerData = deserializeJson!RankRespDto(json);
                 auto ranks = playerData.ranks;
                 auto scoreInfo = playerData.scoreInfo;
-                rankedPlayerCount = playerData.rankCount;
+
                 logInfo("Got ranks");
 
                 // Update cache with new rank and expiry time
                 RankCacheEntry entry;
                 entry.ranks = ranks;
                 entry.scoreInfo = scoreInfo;
+                entry.rankCount = playerData.rankCount;
                 requestRank = ranks;
                 entry.expiryTime = MonoTime.currTime() + cacheTimeout;
                 cache[userId] = entry;
@@ -111,6 +114,15 @@ class RankClient {
             logInfo("Exception getting rank: %s".format(e.msg));
         }
         return blank.ranks;
+    }
+
+    int getRankCount(int userId) @trusted {
+        auto p = userId in cache;
+        if (p !is null) {
+            auto cachedRank = cache[userId];
+            return cachedRank.rankCount;
+        }
+        return blank.rankCount;
     }
 
     // Function to get ScoreInfo
@@ -153,6 +165,7 @@ class RankClient {
                 RankCacheEntry entry;
                 entry.ranks = ranks;
                 entry.scoreInfo = scoreInfo;
+                entry.rankCount = playerData.rankCount;
                 requestScoreInfo = scoreInfo;
                 entry.expiryTime = MonoTime.currTime() + cacheTimeout;
                 cache[userId] = entry;

@@ -112,7 +112,7 @@ final class RoomConnection : Connection
         m_login_server = login_server;
         m_room = room;
         m_client_deaf = false;
-        m_game_reporter_client = new GameReporterClient();
+        m_game_reporter_client = room.game_reporter_client();
         m_rank_client = room.rank_client();
     }
 

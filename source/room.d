@@ -10,6 +10,7 @@ import login_server;
 import room_server;
 import metaserver_config;
 import private_api;
+import game_reporter_client;
 import rank_client;
 
 import std.datetime;
@@ -84,6 +85,7 @@ class Room
         m_room_name = room_name;
         m_maximum_clients = maximum_clients;
         m_rank_client = rank_client;
+        m_game_reporter_client = new GameReporterClient();
 
         // Set up dot commands
         m_dot_commands["time"] = &dot_time;
@@ -335,7 +337,7 @@ class Room
         }
     }
 
-    public GameResultReturn report_game_result(GameResult game_result)
+    public GameResultReturn report_game_result(private_api.GameResult game_result)
     {
         auto result = m_login_server.data_store.add_game_result(game_result);
         return result;
@@ -658,10 +660,12 @@ class Room
     @property public pure nothrow int maximum_clients() const { return m_maximum_clients; }
     @property public pure nothrow RoomServer room_server() { return m_room_server; }
     @property public pure nothrow RankClient rank_client() { return m_rank_client; }
+    @property public pure nothrow GameReporterClient game_reporter_client() { return m_game_reporter_client; }
 
     private LoginServer m_login_server;
     private RoomServer m_room_server;
     private RankClient m_rank_client;
+    private GameReporterClient m_game_reporter_client;
     
     private string m_room_name;
     private room_info m_room_info;

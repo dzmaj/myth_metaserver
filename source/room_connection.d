@@ -970,7 +970,7 @@ final class RoomConnection : Connection
             info, login, client.player_data.nick_name, order_name,
             server_info.city, server_info.state, server_info.country, server_info.quote);
 
-        logInfo("Player Info Packet: %s", playerInfoPacketToString(info));
+        // logInfo("Player Info Packet: %s", playerInfoPacketToString(info));
     }
 }
 

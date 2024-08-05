@@ -80,15 +80,12 @@ class RankClient {
             req.headers["bagrada-api-key"] = "test";
         };
         auto responder = delegate(scope HTTPClientResponse res) {
-            logInfo("Got Response");
             if (res.statusCode == 200) {
                 auto json = res.readJson();
                 // Parse the response body to extract the rank array
                 auto playerData = deserializeJson!RankRespDto(json);
                 auto ranks = playerData.ranks;
                 auto scoreInfo = playerData.scoreInfo;
-
-                logInfo("Got ranks");
 
                 // Update cache with new rank and expiry time
                 RankCacheEntry entry;
@@ -152,7 +149,6 @@ class RankClient {
             req.headers["bagrada-api-key"] = "test";
         };
         auto responder = delegate(scope HTTPClientResponse res) {
-            logInfo("Got Response");
             if (res.statusCode == 200) {
                 auto json = res.readJson();
                 // Parse the response body to extract the rank array

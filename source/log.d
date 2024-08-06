@@ -29,10 +29,15 @@ public static this()
 				  dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
 }
 
-@safe public void log_message(A...)(in char[] format, A args)
+@trusted nothrow public void log_message(A...)(in char[] format, A args)
 {
-	s_log.writefln("%s: " ~ format, get_time_string(), args);
-	s_log.flush();
+    try {
+        s_log.writefln("%s: " ~ format, get_time_string(), args);
+	    s_log.flush();
+    } catch(Exception e) {
+        
+    }
+	
 }
 
 

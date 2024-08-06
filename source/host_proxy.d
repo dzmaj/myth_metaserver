@@ -26,57 +26,67 @@ private class HostProxyPort
 
     // Destructor, cleanup, etc. Currently these all just live until the server dies so not important.
 
-    private void handle_client_connection(TCPConnection client_stream)
+    @trusted nothrow private void handle_client_connection(TCPConnection client_stream)
     {        
-        scope(failure) client_stream.close();
+        try {
+            scope(failure) client_stream.close();
 
-        if (!m_assigned)
-            throw new HostProxyException("Client connected to unassigned port " ~ to!string(client_stream.localAddress.port));
-        log_message("HostProxy: Client connected to port %s", m_client_port);
-        scope(exit) log_message("HostProxy: Client disconnected from port %s", m_client_port);
-        
-        // Find host connection in room
-        auto host_connection = m_host_proxy.room_server.find_client_in_room(m_host_user_id);
-        if (host_connection.isNull())
-        {
-            // Something went wrong... client is no longer in room but we still have a host proxy assigned!
-            // Best we can do is bail for now... TBD if we ever hit this in practice and should try and forcefully
-            // trigger a release here or similar.
-            throw new HostProxyException("Host ID %s not found in rooms!" ~ to!string(m_host_user_id));
+            if (!m_assigned)
+                throw new HostProxyException("Client connected to unassigned port " ~ to!string(client_stream.localAddress.port));
+            log_message("HostProxy: Client connected to port %s", m_client_port);
+            scope(exit) log_message("HostProxy: Client disconnected from port %s", m_client_port);
+            
+            // Find host connection in room
+            auto host_connection = m_host_proxy.room_server.find_client_in_room(m_host_user_id);
+            if (host_connection.isNull())
+            {
+                // Something went wrong... client is no longer in room but we still have a host proxy assigned!
+                // Best we can do is bail for now... TBD if we ever hit this in practice and should try and forcefully
+                // trigger a release here or similar.
+                throw new HostProxyException("Host ID %s not found in rooms!" ~ to!string(m_host_user_id));
+            }
+
+            // Enqueue waiting client
+            ++m_pending_clients.length;
+            m_pending_clients[$-1] = client_stream;
+            log_message("HostProxy: Pushing client for port %s (%s waiting)", m_host_port, m_pending_clients.length);
+
+            // Signal host to connect to us for pairing with the new client connection
+            m_host_proxy.send_proxy_join_packet(host_connection, m_host_port);
+        } catch(Exception e) {
+            log_message("HostProxy client connection error: %s", e.message);
         }
-
-        // Enqueue waiting client
-        ++m_pending_clients.length;
-        m_pending_clients[$-1] = client_stream;
-        log_message("HostProxy: Pushing client for port %s (%s waiting)", m_host_port, m_pending_clients.length);
-
-        // Signal host to connect to us for pairing with the new client connection
-        m_host_proxy.send_proxy_join_packet(host_connection, m_host_port);
+        
     }
 
-    private void handle_host_connection(TCPConnection host_stream)
+    @trusted nothrow private void handle_host_connection(TCPConnection host_stream)
     {
-        scope(failure) host_stream.close();
+        try {
+            scope(failure) host_stream.close();
 
-        if (!m_assigned)
-            throw new HostProxyException("Host connected to unassigned port " ~ to!string(host_stream.localAddress.port));
-        log_message("HostProxy: Host connected to port %s", m_host_port);
-        scope(exit) log_message("HostProxy: Host disconnected from port %s", m_client_port);
+            if (!m_assigned)
+                throw new HostProxyException("Host connected to unassigned port " ~ to!string(host_stream.localAddress.port));
+            log_message("HostProxy: Host connected to port %s", m_host_port);
+            scope(exit) log_message("HostProxy: Host disconnected from port %s", m_client_port);
 
-        // Pop waiting client
-        if (m_pending_clients.empty)
-        {
-            // Should not happen unless something went wrong in the client... treat as an error and drop this connection
-            throw new HostProxyException("Host connected but no clients waiting!");
+            // Pop waiting client
+            if (m_pending_clients.empty)
+            {
+                // Should not happen unless something went wrong in the client... treat as an error and drop this connection
+                throw new HostProxyException("Host connected but no clients waiting!");
+            }
+
+            assert(m_pending_clients.length > 0);   // Should only exit here by exception otherwise
+            auto client_stream = m_pending_clients[$-1];
+            --m_pending_clients.length;
+            log_message("HostProxy: Popped client for port %s (%s still waiting)", m_host_port, m_pending_clients.length);
+
+            // Start the magic
+            proxy_connections(host_stream, client_stream);
         }
-
-        assert(m_pending_clients.length > 0);   // Should only exit here by exception otherwise
-        auto client_stream = m_pending_clients[$-1];
-        --m_pending_clients.length;
-        log_message("HostProxy: Popped client for port %s (%s still waiting)", m_host_port, m_pending_clients.length);
-
-        // Start the magic
-        proxy_connections(host_stream, client_stream);
+        catch(Exception e) {
+            log_message("HostProxy host connection error: %s", e.message);
+        }
     }
 
     private static void proxy_connections(TCPConnection host_stream, TCPConnection client_stream)

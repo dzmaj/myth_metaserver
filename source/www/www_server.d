@@ -35,7 +35,7 @@ public struct WWWConfig
 	// User ID of the site super-admin (can create tournaments, etc)
 	@optional int super_admin_user_id = 11;
 
-    @optional string bagrada_login = "https://bagrada.net/rank-server/auth-status";
+    @optional string bagrada_login = "https://bagrada.net/rank-server/auth/status";
 };
 
 public class WWWServer

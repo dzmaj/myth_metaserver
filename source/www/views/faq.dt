@@ -5,7 +5,7 @@ block content
         .row
             .large-12.columns
                 .title
-                    img(src="/www/faq/gos_faq_01.png", width="360", height="200", alt="Myth on Gate of Storms")
+                    img(src="/www/faq/gos_faq_01.png", width="360", height="200", alt="Myth on Bagrada.net")
                 
             
                 a(name="what", id="what")

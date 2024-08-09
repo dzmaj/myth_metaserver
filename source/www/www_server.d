@@ -454,25 +454,7 @@ public class WWWServer
                 // Redirect to the Spring Boot login page if the user is not found
                 try
                 {
-                    requestHTTP(g_bagrada_login,
-                        (scope HTTPClientRequest auth_req)
-                        {
-                            auth_req.method = HTTPMethod.GET;
-                        },
-                        (scope HTTPClientResponse auth_res)
-                        {
-                            if (auth_res.statusCode == 200)
-                            {
-                                // Assuming you have a struct `UserInfo` that matches the JSON structure
-                                auto userInfo = deserializeJson!UserInfo(auth_res.readJson());
-                                // Use userInfo as needed...
-                            }
-                            else
-                            {
-                                res.redirect("/rank-server/login");
-                            }
-                        }
-                    );
+                    res.redirect("/www/account/discord_login_return/");
                 }
                 catch (Exception e)
                 {
@@ -524,6 +506,7 @@ public class WWWServer
         {
             log_message("Authentication failed for user.");
             // Handle the case where authentication fails
+            res.redirect("/rank-server/login");
         }
     }
     catch (Exception e)

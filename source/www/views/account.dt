@@ -5,7 +5,7 @@ block content
         .large-12.columns
             h1 Account
             p.
-                Gate of Storms uses Steam accounts for sign-in. This avoids the need for separate account,
+                Bagrada uses Discord accounts for sign-in. This avoids the need for separate account,
                 authentication and security measures.
             p
                 a(href="/rank-server/login")

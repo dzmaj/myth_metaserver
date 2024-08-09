@@ -494,15 +494,15 @@ public class WWWServer
         // Parse the JSON response to extract user information
         auto user_info = deserializeJson!UserInfo(auth_response);
 
-        if (user_info.authenticated)
+        if (user_info.authenticated && !user_info.user.isNull)
         {
             log_message("User is authenticated");
             if (!req.session)
                 req.session = res.startSession();
-            req.session.set("logged_in_discord_id", user_info.discordAttributes.discordId);
-            req.session.set("logged_in_user_id", user_info.user.id);
-            req.session.set("logged_in_nick_name", user_info.user.nickName);
-            req.session.set("logged_in_super_admin", user_info.user.adminLevel >= 1);
+            req.session.set("logged_in_discord_id", user_info.discordAttributes.get().discordId);
+            req.session.set("logged_in_user_id", user_info.user.get().id);
+            req.session.set("logged_in_nick_name", user_info.user.get().nickName.get());
+            req.session.set("logged_in_super_admin", user_info.user.get().adminLevel >= 1);
         }
         else
         {

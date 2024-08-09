@@ -22,15 +22,15 @@ struct User {
     int primaryColor;
     int secondaryColor;
     int coatOfArmsBitmapIndex;
-    Nullable!string city;
-    Nullable!string state;
-    Nullable!string country;
-    Nullable!string quote;
+    // Nullable!string city;
+    // Nullable!string state;
+    // Nullable!string country;
+    // Nullable!string quote;
     int adminLevel;
-    Nullable!string registrationDatetime;
-    Nullable!string lastLoginDatetime;
-    Nullable!string bannedUntil;
-    Nullable!string bannedReason;
+    // Nullable!string registrationDatetime;
+    // Nullable!string lastLoginDatetime;
+    // Nullable!string bannedUntil;
+    // Nullable!string bannedReason;
 }
 
 struct DiscordAttributes {

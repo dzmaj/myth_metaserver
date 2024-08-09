@@ -26,9 +26,9 @@ struct User {
     string country;
     string quote;
     int adminLevel;
-    long registrationDatetime;
-    long lastLoginDatetime;
-    long bannedUntil;
+    string registrationDatetime;
+    string lastLoginDatetime;
+    string bannedUntil;
     string bannedReason;
 }
 

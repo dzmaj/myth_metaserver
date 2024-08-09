@@ -465,9 +465,7 @@ public class WWWServer
         }
         else
         {
-            // Basic account landing page
-            auto global = get_global_info(req);
-            res.render!("account.dt", global);
+            res.redirect("/www/account/discord_login_return/");
         }
     }
 

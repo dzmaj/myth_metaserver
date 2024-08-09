@@ -2,6 +2,7 @@ import www_data_store;
 import private_api : PublicServerStatus;
 import log;
 import rest_interface;
+import user_info;
 
 import std.stdio;
 import std.uni;
@@ -11,15 +12,17 @@ import std.algorithm.comparison;
 import vibe.d;
 import vibe.stream.stdio;
 import vibe.http.common;
+import vibe.data.json;
 
-immutable string g_steam_oauth_url = "https://steamcommunity.com/openid/login";
+
+immutable string g_bagrada_login = "https://bagrada.net/rank-server/auth-status";
 
 public struct WWWConfig
 {
     // Cannot do anything useful without a database here
     string database_connection_string;
 
-    // Required for Steam authentication - must match the base URL of the server. NO TRAILING SLASH.
+    // Required for discord authentication - must match the base URL of the server. NO TRAILING SLASH.
     @optional string site_url = "http://localhost";
 
 	// Required for live Metaserver status
@@ -32,7 +35,7 @@ public struct WWWConfig
     @optional string server_address = "127.0.0.1";
 
 	// User ID of the site super-admin (can create tournaments, etc)
-	@optional int super_admin_user_id = -1;
+	@optional int super_admin_user_id = 11;
 };
 
 public class WWWServer
@@ -58,8 +61,7 @@ public class WWWServer
         router.get("/www/", &index);
         router.get("/www/account/", &account);
         router.get("/www/account/logout/", &account_logout);
-        router.get("/www/account/steam_login/", &account_steam_login);
-        router.get("/www/account/steam_login_return/", &account_steam_login_return);
+        router.get("/www/account/discord_login_return/", &account_discord_login_return);
 
         router.get("/www/games/", &games);
         router.get("/www/games/:game_id/", &game);
@@ -162,22 +164,22 @@ public class WWWServer
 
 	// Structure of common data passed to all page rendering (generally as "global")
 	struct GlobalInfo
-	{
-		Tournament[] recent_tournaments;
+    {
+        Tournament[] recent_tournaments;
 
-		// Set if there is a logged in user
-		uint64_t logged_in_steam_id  =  0;			// 0 = invalid for steam ID
-		int      logged_in_user_id   = -1;
-		string   logged_in_nick_name = "";
-		bool     logged_in_super_admin = false;		// Careful - if set logged in user gets lots of capabilities
+        // Set if there is a logged-in user
+        uint64_t logged_in_discord_id  =  0;   // 0 = invalid for discord ID
+        int      logged_in_user_id     = -1;
+        string   logged_in_nick_name   = "";
+        bool     logged_in_super_admin = false; // Careful - if set logged in user gets lots of capabilities
 
-		// Helpers
-		bool is_logged_in_tournament_organizer(int organizer_user_id)
-		{
-			return logged_in_super_admin ||
-				(logged_in_user_id >= 0 && (logged_in_user_id == organizer_user_id));
-		}
-	}
+        // Helpers
+        bool is_logged_in_tournament_organizer(int organizer_user_id)
+        {
+            return logged_in_super_admin || (logged_in_user_id >= 0 && logged_in_user_id == organizer_user_id);
+        }
+    }
+
 
 	private bool is_user_super_admin(int user_id)
 	{
@@ -194,7 +196,7 @@ public class WWWServer
 		// Session info
 		if (req.session)
 		{
-			global.logged_in_steam_id  = req.session.get!uint64_t("logged_in_steam_id",   0);
+			global.logged_in_discord_id  = req.session.get!uint64_t("logged_in_discord_id",   0);
 			global.logged_in_user_id   = req.session.get!int     ("logged_in_user_id",   -1);
 			global.logged_in_nick_name = req.session.get!string  ("logged_in_nick_name", "");
 			global.logged_in_super_admin = is_user_super_admin(global.logged_in_user_id);
@@ -431,154 +433,136 @@ public class WWWServer
     // *************************************** ACCOUNT ************************************************
     private void account(HTTPServerRequest req, HTTPServerResponse res)
     {
-        if (req.session && req.session.isKeySet("logged_in_steam_id"))
+        if (req.session && req.session.isKeySet("logged_in_discord_id"))
         {
-            auto steam_id = req.session.get!uint64_t("logged_in_steam_id");
+            auto discord_id = req.session.get!uint64_t("logged_in_discord_id");
 
-            // Look up login tokens via Steam ID
-            // If valid, render the page with the logged in metaserver user
-            auto login = m_data_store.user_login_tokens(steam_id);
+            // Look up login tokens via discord ID
+            // If valid, render the page with the logged-in metaserver user
+            auto login = m_data_store.user_login_tokens(discord_id);
             if (login.valid)
             {
-				// Store user data in session for easy access
-				req.session.set("logged_in_user_id", login.user_id);
-				req.session.set("logged_in_nick_name", login.nick_name);
+                // Store user data in session for easy access
+                req.session.set("logged_in_user_id", login.user_id);
+                req.session.set("logged_in_nick_name", login.nick_name);
 
-				auto global = get_global_info(req);
+                auto global = get_global_info(req);
                 res.render!("account_meta.dt", global, login);
             }
             else
             {
-                // If we didn't find a user, create a new one for the associated steam ID
-                account_steam_create(req, res);
+                // Redirect to the Spring Boot login page if the user is not found
+                try
+                {
+                    requestHTTP(g_bagrada_login,
+                        (scope HTTPClientRequest auth_req)
+                        {
+                            auth_req.method = HTTPMethod.GET;
+                        },
+                        (scope HTTPClientResponse auth_res)
+                        {
+                            if (auth_res.statusCode == 200)
+                            {
+                                // Assuming you have a struct `UserInfo` that matches the JSON structure
+                                auto userInfo = deserializeJson!UserInfo(auth_res.readJson());
+                                // Use userInfo as needed...
+                            }
+                            else
+                            {
+                                res.redirect("/rank-server/login");
+                            }
+                        }
+                    );
+                }
+                catch (Exception e)
+                {
+                    log_message("Error while authenticating user: %s", e.msg);
+                    res.redirect("/rank-server/login");
+                }
             }
         }
         else
         {
             // Basic account landing page
-			auto global = get_global_info(req);
+            auto global = get_global_info(req);
             res.render!("account.dt", global);
         }
     }
 
-    private void account_steam_create(HTTPServerRequest req, HTTPServerResponse res)
+
+
+    private void account_discord_login_return(HTTPServerRequest req, HTTPServerResponse res)
     {
-        // Required parameters
-        if (!req.session || !req.session.isKeySet("logged_in_steam_id"))
+    try
+    {
+        auto url = g_bagrada_login;
+        string auth_response;
+        requestHTTP(url,
+            (scope HTTPClientRequest login_req)
+            {
+                login_req.method = HTTPMethod.GET;
+                login_req.headers["Cookie"] = req.headers["Cookie"]; // Forward cookies for session handling
+            },
+            (scope HTTPClientResponse login_res)
+            {
+                auth_response = login_res.bodyReader.readAllUTF8();
+            });
+
+        // Parse the JSON response to extract user information
+        auto user_info = deserializeJson!UserInfo(auth_response);
+
+        if (user_info.authenticated)
         {
-            res.redirect("/rank-server/login/");
-            return;
+            if (!req.session)
+                req.session = res.startSession();
+            req.session.set("logged_in_discord_id", user_info.discordAttributes.discordId);
+            req.session.set("logged_in_user_id", user_info.user.id);
+            req.session.set("logged_in_nick_name", user_info.user.nickName);
+            req.session.set("logged_in_super_admin", user_info.user.adminLevel >= 1);
         }
-
-        auto steam_id = req.session.get!uint64_t("logged_in_steam_id");
-        auto initial_name = to!string(steam_id);        // Gets changed on first login anyways...
-        auto user_id = m_data_store.create_steam_user(steam_id, initial_name, initial_name);
-
-        res.redirect("/www/account/"); // Will render differently now that they have an account
+        else
+        {
+            log_message("Authentication failed for user.");
+            // Handle the case where authentication fails
+        }
+    }
+    catch (Exception e)
+    {
+        log_message("Error logging in user: %s", e.msg);
+        throw e;
     }
 
-    private void account_steam_login(HTTPServerRequest req, HTTPServerResponse res)
-    {
-        string query_string = 
-            "?openid.ns=" ~ urlEncode("http://specs.openid.net/auth/2.0") ~ 
-            "&openid.mode=checkid_setup" ~
-            "&openid.return_to=" ~ urlEncode(m_config.site_url ~ "/account/steam_login_return/") ~
-            "&openid.realm=" ~ urlEncode(m_config.site_url) ~
-            "&openid.identity=" ~ urlEncode("http://specs.openid.net/auth/2.0/identifier_select") ~
-            "&openid.claimed_id=" ~ urlEncode("http://specs.openid.net/auth/2.0/identifier_select");
+    res.redirect("/www/account/");
+}
 
-        string full_url = g_steam_oauth_url ~ query_string;
-        res.redirect(full_url);
-    }
-
-    private void account_steam_login_return(HTTPServerRequest req, HTTPServerResponse res)
-    {
-        try
-        {
-            // Verify the assertion via "direct verification"
-            // See https://openid.net/specs/openid-authentication-2_0.html#positive_assertions
-            // See https://openid.net/specs/openid-authentication-2_0.html#verification
-            // NOTE: My reading of these specs implies that the OP (Steam) will preform the necessary
-            // validation of the fields, which is why we copy them all into the check request.
-            string[string] params;
-            foreach (key; req.query.byKey())
-            {
-                params[key] = req.query.get(key, "");
-                //writefln("%s: %s", key, value);
-            }
-            params["openid.mode"] = "check_authentication";
- 
-            // POST request with parameters encoded as form data this time
-            bool valid = false;
-            requestHTTP(g_steam_oauth_url,
-                (scope HTTPClientRequest steam_req)
-                {
-                    steam_req.method = HTTPMethod.POST;
-                    writeFormBody(steam_req, params);
-                },
-                (scope HTTPClientResponse steam_res) 
-                {
-				    string res_body = steam_res.bodyReader.readAllUTF8();
-
-                    // We currently only care about the one line in the response, so keep this simple and fast
-                    // TODO: Respect "invalidate_handle" if it is returned?
-                    foreach (line; lineSplitter(res_body))
-                    {
-                        if (line.length > 9 && sicmp(line[0..9], "is_valid:") == 0)
-                            valid = to!bool(line[9..$]);
-                    }
-
-				    if (!valid)
-				    {
-					    writeln("ERROR: Unexpected response from Steam authentication servers:");
-					    writeln(res_body);
-				    }
-                });
-
-            if (valid)
-            {
-                // Parse the Steam ID from the "claimed_id"
-                auto claimed_id = params["openid.claimed_id"];
-                uint64_t steam_id = to!uint64_t(claimed_id[lastIndexOf(claimed_id, '/') + 1 .. $]);
-
-                if (!req.session)
-                    req.session = res.startSession();
-                req.session.set("logged_in_steam_id", steam_id);
-            }
-            else
-            {
-                // Not clear what error to give here since this should only happen if someone is refreshing
-                // in a weird way or actively attempting to bypass security. Thus just let it redirect back to
-                // the account landing page and they can try again.
-            }
-        }
-        catch (Exception e)
-        {
-            log_message("Error logging in user: %s", e.msg);
-            throw e;
-        }
-
-        res.redirect("/www/account/");
-    }
 
     private void account_logout(HTTPServerRequest req, HTTPServerResponse res)
     {
+        // Notify the Spring Boot application about the logout (optional)
+        auto url = g_bagrada_login ~ "/logout";
+        requestHTTP(url, (scope HTTPClientRequest logout_req)
+        {
+            logout_req.method = HTTPMethod.POST;
+            logout_req.headers["Cookie"] = req.headers["Cookie"];
+        });
+
         // Clear relevant session data for this user
-        // For now just terminate the session - in the future might want to just remove relevant data.
-        if (req.session) res.terminateSession();
+        if (req.session)
+            res.terminateSession();
+
         res.redirect("/www/account/");
     }
+
 
 
     // *************************************** ERROR ************************************************
 
     private void error_page(HTTPServerRequest req, HTTPServerResponse res, HTTPServerErrorInfo error)
     {
-        // To be extra safe we avoid DB queries in the error page for now
-        //auto global = get_global_info(req);
-
-	    res.render!("error.dt", req, error);
+        // To be extra safe, we avoid DB queries in the error page for now
+        res.render!("error.dt", req, error);
     }
+
 
 
     // *************************************** STATE ************************************************

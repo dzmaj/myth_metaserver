@@ -261,6 +261,7 @@ public:
 
     public void send_proxy_join_packet(Nullable!RoomConnection connection, ushort host_port) const
     {
+        log_message("HostProxy: proxy join");
         if (!connection.isNull) {
             send_proxy_join_packet(connection.get(), host_port);
         }

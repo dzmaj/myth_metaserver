@@ -12,50 +12,7 @@ html(class="no-js", lang="en")
 
         link(rel="stylesheet", href="/static/css/foundation.css")
         link(rel="stylesheet", href="/static/css/app.css")
-    body
-        nav.top-bar
-            .top-bar-left
-                ul(class="dropdown menu", data-dropdown-menu)
-                    li
-                        a(href="/www/") Home
-                    li.divider
-                    li
-                        a(href="/www/faq/") FAQ
-                    li.divider
-                    li
-                        a(href="/www/metaserver/") Metaserver
-                    li.divider
-                    li
-                        a(href="/www/games/") Games
-                    li.divider
-                    li
-                        a(href="/www/tournaments/") Tournaments
-
-                        //- If non-empty "recent_tournaments" was provided to the script, show the dropdown
-                        //- Otherwise, just leave it as a static link.
-                        - static if (is(typeof(global)))
-                            ul(class="menu vertical")
-                                - foreach (t; global.recent_tournaments)
-                                    li
-                                        a(href="/www/tournaments/#{t.short_name}/")= t.name
-                    
-                    li.divider
-                    li
-                        a(href="/rank-server/login") Account
-
-                        //- If there's a logged in user, show a dropdown with a link to their profile
-                        - static if (is(typeof(global)))
-                            - if (global.logged_in_user_id >= 0)
-                                ul(class="menu vertical")
-                                    li
-                                        a(href="/www/users/#{global.logged_in_user_id}/")= global.logged_in_nick_name
-                    li.divider
-
-            .top-bar-right
-                ul(class="dropdown menu", data-dropdown-menu)
-                    li
-                        a(href="https://discord.gg/waXuquppry") Discord
-                        
+    body                
 
         #content
             block content

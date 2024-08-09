@@ -593,8 +593,8 @@ class Room
         aux_data_packet.game_data_size = cast(ushort)game_data.length;
         
         // Debug
-        //log_message("encode_game_payload: ID %s, host %s, port %s, verb %s", aux_data_packet.room_game_id, 
-        //			aux_data_packet.host, aux_data_packet.port, aux_data_packet.verb);
+        log_message("encode_game_payload: ID %s, host %s, port %s, verb %s", aux_data_packet.room_game_id, 
+        			aux_data_packet.host, aux_data_packet.port, aux_data_packet.verb);
 
         return MythSocket.encode_payload(aux_data_packet, game_data);
     }

@@ -15,8 +15,6 @@ import vibe.http.common;
 import vibe.data.json;
 
 
-immutable string g_bagrada_login = "https://bagrada.net/rank-server/auth-status";
-
 public struct WWWConfig
 {
     // Cannot do anything useful without a database here
@@ -36,6 +34,8 @@ public struct WWWConfig
 
 	// User ID of the site super-admin (can create tournaments, etc)
 	@optional int super_admin_user_id = 11;
+
+    @optional string bagrada_login = "https://bagrada.net/rank-server/auth-status";
 };
 
 public class WWWServer
@@ -475,17 +475,20 @@ public class WWWServer
     {
     try
     {
-        auto url = g_bagrada_login;
         string auth_response;
-        requestHTTP(url,
+        requestHTTP(m_config.bagrada_login,
             (scope HTTPClientRequest login_req)
             {
                 login_req.method = HTTPMethod.GET;
-                login_req.headers["Cookie"] = req.headers["Cookie"]; // Forward cookies for session handling
+                // Add the 'Cookie' header if necessary
+                if (req.headers["Cookie"].length > 0) {
+                    login_req.headers["Cookie"] = req.headers["Cookie"];
+                }
             },
             (scope HTTPClientResponse login_res)
             {
                 auth_response = login_res.bodyReader.readAllUTF8();
+                log_message("Got auth response %s", auth_response);
             });
 
         // Parse the JSON response to extract user information
@@ -493,6 +496,7 @@ public class WWWServer
 
         if (user_info.authenticated)
         {
+            log_message("User is authenticated");
             if (!req.session)
                 req.session = res.startSession();
             req.session.set("logged_in_discord_id", user_info.discordAttributes.discordId);
@@ -520,12 +524,12 @@ public class WWWServer
     private void account_logout(HTTPServerRequest req, HTTPServerResponse res)
     {
         // Notify the Spring Boot application about the logout (optional)
-        auto url = g_bagrada_login ~ "/logout";
-        requestHTTP(url, (scope HTTPClientRequest logout_req)
-        {
-            logout_req.method = HTTPMethod.POST;
-            logout_req.headers["Cookie"] = req.headers["Cookie"];
-        });
+        // auto url = bagrada_login ~ "/logout";
+        // requestHTTP(url, (scope HTTPClientRequest logout_req)
+        // {
+        //     logout_req.method = HTTPMethod.POST;
+        //     logout_req.headers["Cookie"] = req.headers["Cookie"];
+        // });
 
         // Clear relevant session data for this user
         if (req.session)

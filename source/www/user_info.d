@@ -1,10 +1,10 @@
 
 struct UserInfo {
-    LoginToken loginToken;
-    User user;
-    DiscordAttributes discordAttributes;
+    Nullable!LoginToken loginToken;
+    Nullable!User user;
+    Nullable!DiscordAttributes discordAttributes;
     bool authenticated;
-    GrantedAuthority[] authorities;
+    Nullable!GrantedAuthority[] authorities;
 }
 
 struct LoginToken {
@@ -16,24 +16,24 @@ struct LoginToken {
 
 struct User {
     int id;
-    string nickName;
-    string teamName;
+    Nullable!string nickName;
+    Nullable!string teamName;
     int primaryColor;
     int secondaryColor;
     int coatOfArmsBitmapIndex;
-    string city;
-    string state;
-    string country;
-    string quote;
+    Nullable!string city;
+    Nullable!string state;
+    Nullable!string country;
+    Nullable!string quote;
     int adminLevel;
-    string registrationDatetime;
-    string lastLoginDatetime;
-    string bannedUntil;
-    string bannedReason;
+    Nullable!string registrationDatetime;
+    Nullable!string lastLoginDatetime;
+    Nullable!string bannedUntil;
+    Nullable!string bannedReason;
 }
 
 struct DiscordAttributes {
-    string discordName;
+    Nullable!string discordName;
     long discordId;
 }
 

@@ -1,3 +1,4 @@
+import std.typecons;
 
 struct UserInfo {
     Nullable!LoginToken loginToken;

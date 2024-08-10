@@ -4,7 +4,7 @@ block content
     .row
         .large-12.columns
             h1 Account
-            p You are signed in as <a href="/www/users/#{login.user_id}/">#{login.nick_name}.</a> (<a href="/www/account/logout/">Sign out</a>.)
+            p You are signed in as <a href="/webui/users/#{login.user_id}/">#{login.nick_name}.</a> (<a href="/www/account/logout/">Sign out</a>.)
             p In the Myth 2 client you may use the following credentials to sign into the metaserver:
     .row
         .small-2.columns

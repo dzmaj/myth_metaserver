@@ -35,7 +35,7 @@ block content
                                                     - if (player.guest)
                                                         |#{player.nick_name}
                                                     - else
-                                                        a(href="/www/users/#{player.user_id}/") #{player.nick_name}
+                                                        a(href="/webui/users/#{player.user_id}/") #{player.nick_name}
 
                                     .large-8.small-12.columns
                                         - foreach (game; room.games)

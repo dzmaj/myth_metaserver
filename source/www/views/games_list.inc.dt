@@ -65,7 +65,7 @@
                 th
         tbody
             - foreach (game; games)
-                - auto game_url = base_url ~ to!string(game.game_id) ~ "/";
+                - auto game_url = "https://bagrada.net/webui/games/" ~ to!string(game.game_id) ~ "/";
                 tr
                     td= game.start_date_string
                     td

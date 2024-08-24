@@ -834,6 +834,7 @@ final class RoomConnection : Connection
         auto score_info = m_rank_client.getUserScoreInfo(client.user_id);
 
         // Fill in stats data
+        
         {
             // For "Total" stats myth uses info.ranked_score_datum and info.overall_rank_data.ranked_game_data
             // For per-scoring stats myth uses info.ranked_score_datum_by_game_type[] and info.overall_rank_data.ranked_game_data_by_game_type[]
@@ -934,6 +935,9 @@ final class RoomConnection : Connection
 
             foreach (i, j; map)
             {
+                if ( (to!string(j) in score_info) == null) {
+                    continue;
+                }
                 
 
                 // String into null terminated - must manually convert to mac roman since it's not a "string", but a char array

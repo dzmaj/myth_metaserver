@@ -43,9 +43,8 @@ class RankClient {
     public this() {
         client = new HTTPClient();
         cacheTimeout = dur!"minutes"(1);
-        blank.ranks = [-1, -1, -1];
-        blank.expiryTime = MonoTime.currTime();
-        blank.rankCount = 0;
+        blank = RankCacheEntry([-1, -1, -1], MonoTime.currTime(), new ScoreInfo[string], 0);
+        blank.scoreInfo["0"] = ScoreInfo(0,0,0,0,0,0,0,0,0,0,"");
         cache[-1] = blank;
         rankedPlayerCount = 0;
     }

@@ -9,6 +9,7 @@ import host_proxy;
 import private_api;
 import room_server;
 import metaserver_config;
+import bagrada_socket;
 
 import vibe.vibe;
 
@@ -78,6 +79,7 @@ class LoginServer
         {
             auto router = new URLRouter;
             router.get("/status.json", &http_status_json);
+            // Setup WebSocket route
 
             auto settings = new HTTPServerSettings;
             settings.port = cast(ushort)m_config.http_server_port;

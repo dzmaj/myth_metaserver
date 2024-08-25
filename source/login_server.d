@@ -85,7 +85,7 @@ class LoginServer
             settings.port = cast(ushort)m_config.http_server_port;
             settings.errorPageHandler = &http_error_page;
             settings.accessLogFile = m_config.http_server_log_file;
-            settings.bindAddresses = [m_config.server_address];
+            settings.bindAddresses = [m_config.status_bind_address];
 
             listenHTTP(settings, router);
         }

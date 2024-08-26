@@ -455,7 +455,7 @@ public class Game
 		if (game_player_data.length > 0)
 		{
 			GameResult.Team team;
-			team.place = team.place.max; // So they get sorted last
+			team.place = 16; // So they get sorted last
 			team.spectators = true;
 			team.team_name = "Spectators";
 			// Rest default-initiatlized

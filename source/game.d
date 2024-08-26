@@ -373,7 +373,10 @@ public class Game
 		m_game_result.teams = [];
 		foreach (team_scores; scores.teams[0 .. scores.number_of_teams])
 		{
-			if (team_scores.team_valid_flag)
+            if (team_scores.place > 16) {
+                log_message("This must be an observer team...");
+            }
+			else if (team_scores.team_valid_flag)
 			{
 				GameResult.Team team;
 				team.spectators = false;
@@ -382,6 +385,7 @@ public class Game
 				// NOTE: We mess with the result in one way here...
 				// If it's a coop game, then we assign the team "1st" only if the game ended normally any with a win
 				// This simplifies "win/loss" logic on the database side
+                log_message("Team score place: %d", team_scores.place);
 				team.place = team_scores.place + 1; // Convert from 0-based to 1-based
 				// Defer filling out the "place_tie" field until after we have sorted
 				if (m_game_result.cooperative)
@@ -439,7 +443,9 @@ public class Game
                 {
                     log_message("Client ID %s of captain not found in game player list!", captain_user_id);
                 }
-			}
+			} else {
+                log_message("Team not valid");
+            }
 		}
 
 		// Count teams before adding any special teams (spectators)

@@ -33,9 +33,9 @@ class GameReporterClient {
     auto responder = delegate(scope HTTPClientResponse res) {
         
         if (res.statusCode == 200) {
-            logInfo("Got success response for game report");
+            logInfo("Got success response for game complete");
         } else {
-            logInfo("Got failure response for game report");
+            logInfo("Got failure response for game complete");
         }
     };
 

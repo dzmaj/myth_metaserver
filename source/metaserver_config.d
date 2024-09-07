@@ -15,6 +15,7 @@ public struct MetaserverConfig
     @optional string game_reporter_started_uri = "/report/gameStart";
     @optional string rank_client_uri = "/rest/caste";
     @optional string rank_server_base_url = "http://localhost:8080/rank-server";
+    @optional string rank_server_ws_url = "ws://localhost:8080/rank-server/ws/metaserver";
 
     @optional int http_server_port = 8080;
     @optional string http_server_log_file = "";

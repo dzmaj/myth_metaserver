@@ -44,25 +44,25 @@ void run_gc_cleanup()
 
     auto task = delegate() nothrow {
         try {
-            scope(exit) log_message("Process: ERROR, GC cleanup task exited!");
+            scope(exit) log_error_message("Process: ERROR, GC cleanup task exited!");
 
             for (;;)
             {
                 sleep(5.minutes);
 
-                log_message("Process: Starting GC collect...");            
+                log_debug_message("Process: Starting GC collect...");            
                 auto sw = StopWatch(AutoStart.yes);
 
                 GC.collect();
                 GC.minimize();
 
-                log_message("Process: Finished GC collect in %d ms. Used/free (MB): %s/%s",
+                log_debug_message("Process: Finished GC collect in %d ms. Used/free (MB): %s/%s",
                             sw.peek.total!"msecs",
                             GC.stats.usedSize / 1000000, GC.stats.freeSize / 1000000);
             }
         } catch (Exception e) {
             try {
-                log_message("Error: ", e.msg);
+                log_error_message("Error: ", e.msg);
             } catch (Exception e) {
                 //logging exception, not sure what else to do here, but it has to be caught for this to be nothrow
             }
@@ -110,7 +110,7 @@ void start_servers(string[] args)
     }
     catch (Exception e)
     {
-        log_message(e.msg);
+        log_error_message(e.msg);
     }
 }
 

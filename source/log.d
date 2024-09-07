@@ -23,9 +23,9 @@ public static this()
 @safe public void initialize_logging(string file_name)
 {
 	s_log = File(file_name, "a");
-	s_chat_log = File("chat_" ~ file_name, "a");
-	s_error_log = File("error_" ~ file_name, "a");
-	s_debug_log = File("debug_" ~ file_name, "a");
+	s_chat_log = File(file_name ~ "_chat", "a");
+	s_error_log = File(file_name ~ "_error", "a");
+	s_debug_log = File(file_name ~ "_debug", "a");
 }
 
 @safe private string get_time_string()

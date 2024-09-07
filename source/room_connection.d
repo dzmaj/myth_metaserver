@@ -153,7 +153,7 @@ final class RoomConnection : Connection
                         socket.send_packet_payload(type, payload);
                     },// Should never send anything other than the above mesage
                         (Variant v) {
-                        log_message("INTERNAL ERROR: Unknown message type in send packet task!");
+                        log_error_message("INTERNAL ERROR: Unknown message type in send packet task!");
                         assert(false);
                     });
                     // No yield for now... it's important to drain these outgoing queues quickly so
@@ -211,7 +211,7 @@ final class RoomConnection : Connection
         }
         catch (InterruptException e)
         {
-            log_message("Caught InterruptException: %s", e.msg);
+            log_error_message("Caught InterruptException: %s", e.msg);
 
             // Another fiber interrupted us for some reason. Check if we have a pending
             // exception that they want us to throw in this thread.
@@ -233,7 +233,7 @@ final class RoomConnection : Connection
 
             version (DebugPackets)
             {
-                debug log_message("%s: Received %s", m_client.user_id, header.type);
+                debug log_debug_message("%s: Received %s", m_client.user_id, header.type);
             }
 
             switch (header.type)
@@ -442,7 +442,7 @@ final class RoomConnection : Connection
                 auto payload = MythSocket.encode_payload(chat_packet, player_name, message);
                 // m_room.send_packet_to_all_clients(packet_type._room_broadcast_packet, payload);
                 m_room.send_packet_to_all_except(muted_by_users, packet_type._room_broadcast_packet, payload);
-                log_message("%s (id %d) broadcast: %s", player_name, user_id, message);
+                log_chat_message("%s (id %d) broadcast: %s", player_name, user_id, message);
             }
             else
             {
@@ -467,7 +467,7 @@ final class RoomConnection : Connection
                 if (local_echo && target_user_id != m_client.user_id)
                     send_packet(packet_type._directed_data_packet, payload);
 
-                log_message("%s (id %d) DMed id %s: %s", player_name, user_id, target_user_id, message);
+                log_chat_message("%s (id %d) DMed id %s: %s", player_name, user_id, target_user_id, message);
             }
         }
     }
@@ -511,6 +511,7 @@ final class RoomConnection : Connection
         short order;
         ubyte[] game_data;
         socket.receive_packet(packet_type._create_game_packet, port, order, game_data);
+        m_blocked_user_ids = m_login_server.data_store().get_blocked_users(m_client.user_id);
 
         if (m_hosted_game)
         {
@@ -525,7 +526,7 @@ final class RoomConnection : Connection
             // Test direct connectivity to the host
             if (m_client.host_proxy_state == ClientHostProxyState.unknown)
             {
-                log_message("Testing host connectivity for host ID %d...", m_client.user_id);
+                log_debug_message("Testing host connectivity for host ID %d...", m_client.user_id);
 
                 // Need to test if the client is reachable from the outside
                 // TODO: We should ideally handle the case where they stop hosting before we can
@@ -551,13 +552,13 @@ final class RoomConnection : Connection
 
                     test_connection.close();
 
-                    log_message("Successfully connected to host ID %d: disabling host proxy", m_client
+                    log_debug_message("Successfully connected to host ID %d: disabling host proxy", m_client
                             .user_id);
                     m_client.set_host_proxy_state(ClientHostProxyState.off);
                 }
                 catch (Exception e)
                 {
-                    log_message("Failed to connect to host ID %d: enabling host proxy", m_client
+                    log_error_message("Failed to connect to host ID %d: enabling host proxy", m_client
                             .user_id);
                     m_client.set_host_proxy_state(ClientHostProxyState.on);
                 }
@@ -578,7 +579,7 @@ final class RoomConnection : Connection
                 }
                 catch (Exception e)
                 {
-                    log_message(e.msg);
+                    log_error_message(e.msg);
                 }
             }
 
@@ -893,7 +894,7 @@ final class RoomConnection : Connection
             2   2   FFA                 4
             3   4   Small 2-Team        6
             4   5   Large 2-Team        7
-            5   0   Team FFA            
+            5   0   Team FFA            8
             6   7   WWII                2
             7   ?   Other 3rd Party     5
             8   ?   Coop                1
@@ -944,7 +945,8 @@ final class RoomConnection : Connection
                 7:2,
                 // not sure if ww2/3p match up correctly yet
                 8:5,
-                9:1
+                9:1,
+                0:8
                 
 
             ];
@@ -990,7 +992,7 @@ final class RoomConnection : Connection
             info, login, client.player_data.nick_name, order_name,
             server_info.city, server_info.state, server_info.country, server_info.quote);
 
-        // logInfo("Player Info Packet: %s", playerInfoPacketToString(info));
+        log_debug_message("Player Info Packet: %s", playerInfoPacketToString(info));
     }
 }
 
@@ -1095,6 +1097,11 @@ string rankedGameDataByGameTypeToString(game_rank_data[] data)
         return m_client;
     }
 
+    @property public pure nothrow inout(int[]) blocked_user_ids() inout
+    {
+        return m_blocked_user_ids;
+    }
+
     private LoginServer m_login_server;
     private Room m_room;
     private RoomClient m_client;
@@ -1105,6 +1112,7 @@ string rankedGameDataByGameTypeToString(game_rank_data[] data)
     private GameReporterClient m_game_reporter_client;
     private bool m_sent_rec_header = false;
     private RankClient m_rank_client;
+    private int[] m_blocked_user_ids;
 
     private bool m_client_deaf;
 

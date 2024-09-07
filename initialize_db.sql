@@ -438,3 +438,13 @@ CREATE TABLE
     FOREIGN KEY (user_id) REFERENCES metaserver_users (id),
     FOREIGN KEY (muted_user_id) REFERENCES metaserver_users (id)
   );
+
+CREATE TABLE
+  IF NOT EXISTS blocked_users (
+    id BIGINT AUTO_INCREMENT NOT NULL,
+    user_id INT (11) NOT NULL,
+    blocked_user_id INT (11) NOT NULL,
+    PRIMARY KEY (id),
+    FOREIGN KEY (user_id) REFERENCES metaserver_users (id),
+    FOREIGN KEY (blocked_user_id) REFERENCES metaserver_users (id)
+  );

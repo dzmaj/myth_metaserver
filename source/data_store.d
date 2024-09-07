@@ -63,6 +63,8 @@ interface DataStoreInterface
     int[] get_muted_users(int user_id);
     int[] get_muted_by_users(int user_id);
     bool mute_user(int user_id, int muted_user_id);
+    int[] get_blocked_users(int user_id);
+    bool block_user(int user_id, int blocked_user_id);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -129,6 +131,16 @@ class DataStoreNull : DataStoreInterface
     int get_user_admin_level(int user_id)
     {
         return false;
+    }
+
+    int[] get_blocked_users(int user_id)
+    {
+        return [];
+    }
+
+    bool block_user(int user_id, int blocked_user_id)
+    {
+        return false; // noop
     }
 }
 
@@ -459,6 +471,24 @@ class DataStoreMysql : DataStoreInterface
     {
         auto db = m_db.lockConnection();
         db.execute("INSERT INTO muted_users (user_id, muted_user_id) VALUES (?, ?);", user_id, muted_user_id);
+        return true;
+    }
+
+    int[] get_blocked_users(int user_id)
+    {
+        auto db = m_db.lockConnection();
+        int[] blocked_user_ids;
+        db.execute("SELECT blocked_user_id FROM blocked_users WHERE user_id = ?;", user_id, (MySQLRow row) {
+            blocked_user_ids ~= row.blocked_user_id.get!int;
+        });
+        return blocked_user_ids;
+    }
+
+    //block a user for a given user
+    bool block_user(int user_id, int blocked_user_id)
+    {
+        auto db = m_db.lockConnection();
+        db.execute("INSERT INTO blocked_users (user_id, blocked_user_id) VALUES (?, ?);", user_id, blocked_user_id);
         return true;
     }
 

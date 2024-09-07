@@ -92,12 +92,14 @@ class Room
         m_dot_commands["games"] = &dot_games;
         m_dot_commands["proxy"] = &dot_proxy;
         m_dot_commands["help"] = &dot_help;
+        m_dot_commands["mute"] = &dot_mute;
+        m_dot_commands["block"] = &dot_block;
+
         m_admin_dot_commands["info"] = &dot_info;
         m_admin_dot_commands["kick"] = &dot_kick;
         m_admin_dot_commands["ban"] = &dot_ban;
         m_admin_dot_commands["message"] = &dot_message;
-        m_admin_dot_commands["mute"] = &dot_mute;
-
+        m_admin_dot_commands["admin"] = &dot_admin;
         // Set up listen socket for this room
         listenTCP(m_room_info.port, &handle_connection, "0.0.0.0");
 
@@ -159,6 +161,20 @@ class Room
     }
 
     public int[] get_player_rank(int user_id) {
+
+        bool is_admin = false;
+
+        foreach (admin_user_id; m_admin_user_ids) {
+            if (user_id == admin_user_id) {
+                is_admin = true;
+                break;
+            }
+        }
+
+        if (is_admin) {
+            return [18,18,18];
+        }
+
         try {
             return m_rank_client.getUserRank(user_id);
         } catch (Exception e) {
@@ -239,9 +255,13 @@ class Room
         return games;
     }
 
+    //update this to only send to users that are not blocked
     public void add_game(Game game)
     {
-        send_packet_to_all_clients(packet_type._game_list_packet, encode_game_payload(game, GameVerb.add));
+        auto blocked_user_ids = m_login_server.data_store.get_blocked_users(game.host_user_id);
+
+        send_packet_to_all_except(blocked_user_ids, packet_type._game_list_packet, encode_game_payload(game, GameVerb.add));
+        // send_packet_to_all_clients(packet_type._game_list_packet, encode_game_payload(game, GameVerb.add));
         update_room_data();
 
         log_message("%s: Added game hosted by user ID %d", m_room_name, game.host_user_id);
@@ -249,12 +269,16 @@ class Room
 
     public void update_game(Game game)
     {
-        send_packet_to_all_clients(packet_type._game_list_packet, encode_game_payload(game, GameVerb.change));
+        //send_packet_to_all_clients(packet_type._game_list_packet, encode_game_payload(game, GameVerb.change));
+        auto blocked_user_ids = m_login_server.data_store.get_blocked_users(game.host_user_id);
+        send_packet_to_all_except(blocked_user_ids, packet_type._game_list_packet, encode_game_payload(game, GameVerb.change));
     }
 
     public void remove_game(const(Game) game)
     {
-        send_packet_to_all_clients(packet_type._game_list_packet, encode_game_payload(game, GameVerb.remove));
+        //send_packet_to_all_clients(packet_type._game_list_packet, encode_game_payload(game, GameVerb.remove));
+        auto blocked_user_ids = m_login_server.data_store.get_blocked_users(game.host_user_id);
+        send_packet_to_all_except(blocked_user_ids, packet_type._game_list_packet, encode_game_payload(game, GameVerb.remove));
         update_room_data();
 
         log_message("%s: Removed game hosted by user ID %d", m_room_name, game.host_user_id);
@@ -283,14 +307,23 @@ class Room
             auto game = connection.visible_hosted_game;
             if (game)
             {
-                auto new_game_payload = encode_game_payload(game, GameVerb.add);
-            
-                if (new_game_payload.length + game_payload.length > (MAXIMUM_PACKET_SIZE - 100))
-                {
-                    target_connection.send_packet_payload(packet_type._game_list_packet, game_payload.idup);
-                    game_payload.length = 0;
+                bool blocked = false;
+                foreach (blocked_user_id; connection.blocked_user_ids) {
+                    if (blocked_user_id == target_connection.client.user_id) {
+                        blocked = true;
+                        break;
+                    }
                 }
-                game_payload ~= new_game_payload;
+                if (!blocked) {
+                    auto new_game_payload = encode_game_payload(game, GameVerb.add);
+            
+                    if (new_game_payload.length + game_payload.length > (MAXIMUM_PACKET_SIZE - 100))
+                    {
+                        target_connection.send_packet_payload(packet_type._game_list_packet, game_payload.idup);
+                        game_payload.length = 0;
+                    }
+                    game_payload ~= new_game_payload;
+                }
             }
         }
 
@@ -417,6 +450,49 @@ class Room
         send_blue_message(caller, format("Unknown command '%s'.", command));
     }
 
+    //command for admin to toggle admin mode
+    private void dot_admin(RoomConnection caller, Nullable!RoomConnection target, string params)
+    {
+        //check if the caller is in admin mode list already
+        bool is_admin = false;
+
+        //use a regular for loop to check if the caller is in admin mode list
+        for (int i = 0; i < m_admin_user_ids.length; i++) {
+            if (caller.client.user_id == m_admin_user_ids[i]) {
+                is_admin = true;
+                //slice the array to remove the user_id
+                m_admin_user_ids = m_admin_user_ids[0..i] ~ m_admin_user_ids[i+1..$];
+                break;
+            }
+        }
+
+        //if the caller is in admin mode list, remove them
+        if (is_admin) {
+            send_blue_message(caller, "You are no longer in admin mode.");
+        } else {
+            m_admin_user_ids ~= caller.client.user_id;
+            send_blue_message(caller, "You are now in admin mode.");
+        }
+        
+        
+        
+        
+    }
+
+    private void dot_block(RoomConnection caller, Nullable!RoomConnection target, string params)
+    {
+        if (target.isNull)
+        {
+            send_blue_message(caller, "You must first select a player by clicking on their name.");
+            return;
+        } else {
+            auto blocked_user_id = target.get().client.user_id;
+            auto blocked_by_user_id = caller.client.user_id;
+            m_login_server.data_store().block_user(blocked_by_user_id, blocked_user_id);
+            send_blue_message(caller, format("You have blocked user ID %d.", blocked_user_id));
+        }
+    }
+
     private void dot_mute(RoomConnection caller, Nullable!RoomConnection target, string params)
     {
         if (target.isNull)
@@ -489,7 +565,25 @@ class Room
 
     private void dot_help(RoomConnection caller, Nullable!RoomConnection target, string params)
     {
-        send_blue_message(caller, "Available commands:\n.help .games .proxy .time .userid .version .mute");
+        //list all the dot commands that the caller has access to
+        //get whether the caller is an admin
+        send_blue_message(caller, "Available Metaserver commands:");
+        send_blue_message(caller, ".help : displays available commands");
+        send_blue_message(caller, ".games : displays all games in the room");
+        send_blue_message(caller, ".proxy : view or change host proxy state.");
+        send_blue_message(caller, ".time : displays the current server time");
+        send_blue_message(caller, ".version : displays the current game version");
+        send_blue_message(caller, ".mute : mutes a user");
+        send_blue_message(caller, ".block : blocks a user from your hosted games");
+        if (m_login_server.data_store.get_user_admin_level(caller.client.user_id) > 0) {
+            send_blue_message(caller, "Admin commands:");
+            send_blue_message(caller, ".info : displays user info");
+            send_blue_message(caller, ".admin : toggles admin badge");
+            send_blue_message(caller, ".kick : kicks a user");
+            send_blue_message(caller, ".ban : bans a user");
+            send_blue_message(caller, ".message : sends a blue message");
+        }
+        
     }
 
     private void dot_proxy(RoomConnection caller, Nullable!RoomConnection target, string params)
@@ -715,6 +809,8 @@ class Room
     private string m_room_name;
     private room_info m_room_info;
     private immutable(int) m_maximum_clients;
+
+    private int[] m_admin_user_ids;
 
     private alias void delegate(RoomConnection, Nullable!RoomConnection, string)[string] DotCommandMap; 
     private DotCommandMap m_dot_commands;

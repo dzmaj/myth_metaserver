@@ -1,5 +1,7 @@
 module rank_client;
 
+import log;
+
 import vibe.http.client;
 import core.time;
 import vibe.core.log;
@@ -117,7 +119,7 @@ class RankClient {
             requestHTTP(url, requester, responder);
             return requestRank;
         } catch (Exception e) {
-            logInfo("Exception getting rank: %s".format(e.msg));
+            log_error_message("Exception getting rank: %s".format(e.msg));
         }
         return blank.ranks;
     }
@@ -166,7 +168,7 @@ class RankClient {
                 auto playerData = deserializeJson!RankRespDto(json);
                 auto ranks = playerData.ranks;
                 auto scoreInfo = playerData.scoreInfo;
-                logInfo("Got scoreInfo");
+                log_debug_message("Got scoreInfo");
 
                 // Update cache with new scoreInfo and expiry time
                 RankCacheEntry entry;
@@ -189,7 +191,7 @@ class RankClient {
             requestHTTP(url, requester, responder);
             return requestScoreInfo;
         } catch (Exception e) {
-            logInfo("Exception getting scoreInfo: %s".format(e.msg));
+            log_error_message("Exception getting scoreInfo: %s".format(e.msg));
         }
         return blank.scoreInfo;
     }

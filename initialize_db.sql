@@ -428,3 +428,13 @@ CREATE TABLE
     FOREIGN KEY (plugin_id) REFERENCES plugin_infos (id),
     FOREIGN KEY (game_extension_id) REFERENCES game_extensions (id)
   );
+
+CREATE TABLE
+  IF NOT EXISTS muted_users (
+    id BIGINT AUTO_INCREMENT NOT NULL,
+    user_id BIGINT NOT NULL,
+    muted_user_id BIGINT NOT NULL,
+    PRIMARY KEY (id),
+    FOREIGN KEY (user_id) REFERENCES metaserver_users (id),
+    FOREIGN KEY (muted_user_id) REFERENCES metaserver_users (id)
+  );

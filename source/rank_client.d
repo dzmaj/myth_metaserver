@@ -55,6 +55,7 @@ class RankClient {
         blank.scoreInfo["0"] = ScoreInfo(0,0,0,0,0,0,0,0,0,0,"");
         cache[-1] = blank;
         rankedPlayerCount = 0;
+        rankClientUri = config.rank_client_uri;
 
     }
 

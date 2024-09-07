@@ -93,7 +93,7 @@ class LoginServer
         // Set up login listen socket
         listenTCP(cast(ushort)m_config.login_port, &handle_login_connection, "0.0.0.0");
 
-
+        m_bagrada_socket = new BagradaSocket(this);
         // Finally, set up some maintainance tasks
         runTask(&cleanup);
     }
@@ -535,6 +535,8 @@ class LoginServer
     private Regex!char m_strip_modifiers_regex;
 
     RoomServer m_room_server;
+
+    BagradaSocket m_bagrada_socket;
 
     private class LoggedInClient : Client
     {

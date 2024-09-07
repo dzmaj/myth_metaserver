@@ -16,41 +16,50 @@ struct BagradaMessage {
 }
 
 enum BagradaMessageType {
+    KEEP_ALIVE,
     BLUE_BAR,
     GAME_STARTED,
     GAME_ENDED,
     CHAT_MESSAGE,
+    
 
     NUMBER_OF_TYPES
 }
 
-class BagradaClient {
+class BagradaSocket {
 
-    private WebSocket[] sockets;
+    private WebSocket socket;
     
     private LoginServer loginServer;
 
     private string m_bagrada_ws_url;
+    private string m_bagrada_api_key;
 
     private Task m_main_task;
     private Task m_listen_task;
+
+    private immutable reconnect_timer = 1.minutes;
     
     public this(LoginServer loginServer) {
         this.loginServer = loginServer;
-        this.sockets = [];
         this.m_bagrada_ws_url = loginServer.config.rank_server_ws_url;
+        this.m_bagrada_api_key = loginServer.config.api_key;
         this.m_main_task = Task.getThis();
+        runTask(&stayConnected);
     }
 
     //process to connect to the bagrada server if it is not already connected, should check every minute
     
-    public void connect() {
+    @safe nothrow private void connect() {
         //connect to the bagrada server
         try {
-            auto ws = connectWebSocket(URL(m_bagrada_ws_url));
-            sockets ~= ws;
+            auto modifier = delegate(scope HTTPClientRequest req) {
+                req.method = HTTPMethod.GET;
+                req.headers["bagrada-api-key"] = m_bagrada_api_key;
+            };
+            socket = connectWebSocketEx(URL(m_bagrada_ws_url), modifier);
             m_listen_task = runTask({
-                listen(ws);
+                listen(socket);
             });
         }
         catch (Exception e) {
@@ -58,12 +67,16 @@ class BagradaClient {
         }
     }
 
-    public void send(BagradaMessage message) {
-        foreach (ws; sockets) {
+    @safe nothrow public void send(BagradaMessage message) {
+
+        try {
             //serialize the message to a json string
             string messageString = serializeToJsonString(message);
             log_debug_message("Sending message to bagrada server: %s", messageString);
-            ws.send(messageString);
+            socket.send(messageString);
+        }
+        catch (Exception e) {
+            log_error_message("Error sending message to bagrada server: %s", e.msg);
         }
     }
 
@@ -112,6 +125,34 @@ class BagradaClient {
             log_error_message("Error listening to bagrada server: %s", e.msg);
         }
 
+    }
+
+    @safe public void stayConnected() nothrow 
+    {
+        
+        try {
+            scope(exit) log_message("Login: ERROR, bagrada socket task exited!");
+
+            for (;;)
+            {
+                if (socket is null || !socket.connected) {
+                    connect();
+                } else {
+                    send(BagradaMessage(BagradaMessageType.KEEP_ALIVE, "ping", 0, 0, 0));
+                }
+                sleep(reconnect_timer);
+                
+
+                //log_message("Login: Finished cleanup (%s clients total)...", m_clients.length);
+            }
+        } catch (Exception e) {
+            try {
+                log_message("Error: ", e.msg);
+            } catch (Exception e) {
+                //logging exception, not sure what else to do here, but it has to be caught for this to be nothrow
+            }
+        }
+        
     }
 
 

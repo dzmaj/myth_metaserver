@@ -397,7 +397,10 @@ final class RoomConnection : Connection
         myth_metaserver_chat_packet chat_packet;
         string player_name;
         string message;
-
+        
+        //get muted by
+        auto muted_by_users = m_room.data_store.get_muted_by_users(m_client.user_id);
+        
         bool broadcast;
         switch (type)
         {
@@ -435,17 +438,23 @@ final class RoomConnection : Connection
 
             if (broadcast)
             {
-                // Send the packet to everyone in the room
+                // Send the packet to everyone in the room except for the muted users
                 auto payload = MythSocket.encode_payload(chat_packet, player_name, message);
-                m_room.send_packet_to_all_clients(packet_type._room_broadcast_packet, payload);
+                // m_room.send_packet_to_all_clients(packet_type._room_broadcast_packet, payload);
+                m_room.send_packet_to_all_except(muted_by_users, packet_type._room_broadcast_packet, payload);
                 log_message("%s (id %d) broadcast: %s", player_name, user_id, message);
             }
             else
             {
-                // Otherwise send it just to the requested player
+                // Otherwise send it just to the requested player if they havent muted the sender
+
                 // NOTE: Player ID and local_echo are unused by the client, but we'll pass on what the sender sent anyways.
                 auto payload = MythSocket.encode_payload(target_user_id, local_echo, chat_packet, player_name, message);
-                m_room.send_packet_to_client(target_user_id, packet_type._directed_data_packet, payload);
+                // m_room.send_packet_to_client(target_user_id, packet_type._directed_data_packet, payload);
+                if (target_user_id in m_room.m_connections && !(m_room.data_store.get_muted_by_users(target_user_id) in m_room.m_connections))
+                {
+                    m_room.send_packet_to_client(target_user_id, packet_type._directed_data_packet, payload);
+                }
 
                 // If requested, echo it back to the client as well
                 if (local_echo && target_user_id != m_client.user_id)

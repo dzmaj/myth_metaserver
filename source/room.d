@@ -96,6 +96,7 @@ class Room
         m_admin_dot_commands["kick"] = &dot_kick;
         m_admin_dot_commands["ban"] = &dot_ban;
         m_admin_dot_commands["message"] = &dot_message;
+        m_admin_dot_commands["mute"] = &dot_mute;
 
         // Set up listen socket for this room
         listenTCP(m_room_info.port, &handle_connection, "0.0.0.0");
@@ -311,6 +312,27 @@ class Room
             connection.send_packet_payload(type, payload);
     }
 
+    //send a packet to a list of users
+    public void send_packet_to_users(int[] user_ids, packet_type type, in ubyte[] payload)
+    {
+        foreach (user_id; user_ids)
+        {
+            auto connection = user_id in m_connections;
+            if (connection)
+                connection.send_packet(type, payload);
+        }
+    }
+
+    //send a packet to all users except for a list of users
+    public void send_packet_to_all_except(int[] user_ids, packet_type type, in ubyte[] payload)
+    {
+        foreach (user_id; m_connections)
+        {
+            if (user_id !in user_ids)
+                m_connections[user_id].send_packet(type, payload);
+        }
+    }
+
     /**
     * Returns true if the given user is in the room and the message was sent successfully.
     */
@@ -387,6 +409,20 @@ class Room
         send_blue_message(caller, format("Unknown command '%s'.", command));
     }
 
+    private void mute_user(RoomConnection caller, Nullable!RoomConnection target, string params)
+    {
+        if (target.isNull)
+        {
+            send_blue_message(caller, "You must first select a player by clicking on their name.");
+            return;
+        } else {
+            auto muted_user_id = target.get().client.user_id;
+            auto muted_by_user_id = caller.client.user_id;
+            m_login_server.data_store.mute_user(muted_by_user_id, muted_user_id);
+            send_blue_message(caller, format("You have muted user ID %d.", muted_user_id));
+        }
+    }
+
     private void dot_time(RoomConnection caller, Nullable!RoomConnection target, string params)
     {
         auto dt = Clock.currTime();
@@ -445,7 +481,7 @@ class Room
 
     private void dot_help(RoomConnection caller, Nullable!RoomConnection target, string params)
     {
-        send_blue_message(caller, "Available commands:\n.help .games .proxy .time .userid .version");
+        send_blue_message(caller, "Available commands:\n.help .games .proxy .time .userid .version .mute");
     }
 
     private void dot_proxy(RoomConnection caller, Nullable!RoomConnection target, string params)

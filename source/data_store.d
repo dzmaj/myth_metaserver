@@ -60,6 +60,9 @@ interface DataStoreInterface
     string get_join_room_message(bool guest);
     int get_user_admin_level(int user_id);
     bool ban_user(int user_id, int days, string reason);
+    int[] get_muted_users(int user_id);
+    int[] get_muted_by_users(int user_id);
+    bool mute_user(int user_id, int muted_user_id);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -85,6 +88,21 @@ class DataStoreNull : DataStoreInterface
         result.success = false;
         result.game_id = -1;
         return result; // noop
+    }
+
+    int[] get_muted_users(int user_id)
+    {
+        return [];
+    }
+
+    int[] get_muted_by_users(int user_id)
+    {
+        return [];
+    }
+
+    bool mute_user(int user_id, int muted_user_id)
+    {
+        return false; // noop
     }
 
     bool ban_user(int user_id, int days, string reason)
@@ -418,8 +436,9 @@ class DataStoreMysql : DataStoreInterface
     int[] get_muted_users(int user_id)
     {
         auto db = m_db.lockConnection();
+        int[] muted_user_ids;
         db.execute("SELECT muted_user_id FROM muted_users WHERE user_id = ?;", user_id, (MySQLRow row) {
-            muted_user_ids.append(row.muted_user_id.get!int);
+            muted_user_ids ~= row.muted_user_id.get!int;
         });
         return muted_user_ids;
     }
@@ -428,8 +447,9 @@ class DataStoreMysql : DataStoreInterface
     int[] get_muted_by_users(int user_id)
     {
         auto db = m_db.lockConnection();
+        int[] muted_by_user_ids;
         db.execute("SELECT user_id FROM muted_users WHERE muted_user_id = ?;", user_id, (MySQLRow row) {
-            muted_by_user_ids.append(row.user_id.get!int);
+            muted_by_user_ids ~= row.user_id.get!int;
         });
         return muted_by_user_ids;
     }

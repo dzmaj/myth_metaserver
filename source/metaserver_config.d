@@ -10,6 +10,11 @@ public struct MetaserverConfig
     @optional string status_bind_address = "127.0.0.1";
     @optional string database_connection_string = "host=127.0.0.1;user=metaserver;db=metaserver_db;port=3306;pwd=metaserver"; // Empty = test mode!
     @optional string api_key = "test";
+    @optional string api_user = "metaserver";
+    @optional string game_reporter_completed_uri = "/report/games";
+    @optional string game_reporter_started_uri = "/report/gameStart";
+    @optional string rank_client_uri = "/rest/caste";
+    @optional string rank_server_base_url = "http://localhost:8080/rank-server";
 
     @optional int http_server_port = 8080;
     @optional string http_server_log_file = "";

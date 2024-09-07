@@ -77,7 +77,7 @@ static assert (metaserver_game_aux_data.sizeof == 32);
 class Room
 {
     public this(LoginServer login_server, RoomServer room_server, string room_name,
-                room_info info, int maximum_clients, RankClient rank_client)
+                room_info info, int maximum_clients, RankClient rank_client, GameReporterClient game_reporter_client)
     {
         m_login_server = login_server;
         m_room_server = room_server;
@@ -85,7 +85,7 @@ class Room
         m_room_name = room_name;
         m_maximum_clients = maximum_clients;
         m_rank_client = rank_client;
-        m_game_reporter_client = new GameReporterClient();
+        m_game_reporter_client = game_reporter_client;
 
         // Set up dot commands
         m_dot_commands["time"] = &dot_time;
@@ -326,10 +326,18 @@ class Room
     //send a packet to all users except for a list of users
     public void send_packet_to_all_except(int[] user_ids, packet_type type, in ubyte[] payload)
     {
-        foreach (user_id; m_connections)
+        foreach (user_id; m_connections.keys)
         {
-            if (user_id !in user_ids)
+            bool muted = false;
+            foreach (muted_user_id; user_ids) {
+                if (user_id == muted_user_id) {
+                    muted = true;
+                    break;
+                }
+            }
+            if (!muted) {
                 m_connections[user_id].send_packet(type, payload);
+            }
         }
     }
 
@@ -409,7 +417,7 @@ class Room
         send_blue_message(caller, format("Unknown command '%s'.", command));
     }
 
-    private void mute_user(RoomConnection caller, Nullable!RoomConnection target, string params)
+    private void dot_mute(RoomConnection caller, Nullable!RoomConnection target, string params)
     {
         if (target.isNull)
         {
@@ -418,7 +426,7 @@ class Room
         } else {
             auto muted_user_id = target.get().client.user_id;
             auto muted_by_user_id = caller.client.user_id;
-            m_login_server.data_store.mute_user(muted_by_user_id, muted_user_id);
+            m_login_server.data_store().mute_user(muted_by_user_id, muted_user_id);
             send_blue_message(caller, format("You have muted user ID %d.", muted_user_id));
         }
     }
@@ -697,6 +705,7 @@ class Room
     @property public pure nothrow RoomServer room_server() { return m_room_server; }
     @property public pure nothrow RankClient rank_client() { return m_rank_client; }
     @property public pure nothrow GameReporterClient game_reporter_client() { return m_game_reporter_client; }
+    @property public pure nothrow RoomConnection[int] connections() { return m_connections; }
 
     private LoginServer m_login_server;
     private RoomServer m_room_server;

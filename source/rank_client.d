@@ -5,6 +5,7 @@ import core.time;
 import vibe.core.log;
 import std.format;
 import vibe.data.json;
+import metaserver_config;
 
 struct RankCacheEntry {
     int[] ranks;
@@ -39,14 +40,22 @@ class RankClient {
     private RankCacheEntry[int] cache;
     private RankCacheEntry blank;
     private int rankedPlayerCount;
+    private string baseUrl;
+    private string apiUser;
+    private string apiKey;
+    private string rankClientUri;
 
-    public this() {
+    public this(const(MetaserverConfig) config) {
         client = new HTTPClient();
+        baseUrl = config.rank_server_base_url;
+        apiUser = config.api_user;
+        apiKey = config.api_key;
         cacheTimeout = dur!"minutes"(1);
         blank = RankCacheEntry([-1, -1, -1], MonoTime.currTime(), new ScoreInfo[string], 0);
         blank.scoreInfo["0"] = ScoreInfo(0,0,0,0,0,0,0,0,0,0,"");
         cache[-1] = blank;
         rankedPlayerCount = 0;
+
     }
 
     @property public pure nothrow int getRankedPlayerCount() {return rankedPlayerCount;}
@@ -71,12 +80,12 @@ class RankClient {
         }
 
         // Rank not found in cache, make the HTTP request
-        auto url = format("http://localhost:8080/rank-server/rest/caste/%d", userId);
+        auto url = format(baseUrl ~ rankClientUri ~ "/%d", userId);
         int[] requestRank;
 
         auto requester = delegate(scope HTTPClientRequest req) {
             req.method = HTTPMethod.GET;
-            req.headers["bagrada-api-key"] = "test";
+            req.headers["bagrada-api-key"] = apiKey;
         };
         auto responder = delegate(scope HTTPClientResponse res) {
             if (res.statusCode == 200) {
@@ -140,12 +149,14 @@ class RankClient {
         }
 
         // Rank not found in cache, make the HTTP request
-        auto url = format("http://localhost:8080/rank-server/rest/caste/%d", userId);
+        // auto url = format("http://localhost:8080/rank-server/rest/caste/%d", userId);
+        auto url = format(baseUrl ~ rankClientUri ~ "/%d", userId);
+        
         ScoreInfo[string] requestScoreInfo;
 
         auto requester = delegate(scope HTTPClientRequest req) {
             req.method = HTTPMethod.GET;
-            req.headers["bagrada-api-key"] = "test";
+            req.headers["bagrada-api-key"] = apiKey;
         };
         auto responder = delegate(scope HTTPClientResponse res) {
             if (res.statusCode == 200) {

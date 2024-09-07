@@ -399,7 +399,7 @@ final class RoomConnection : Connection
         string message;
         
         //get muted by
-        auto muted_by_users = m_room.data_store.get_muted_by_users(m_client.user_id);
+        auto muted_by_users = m_login_server.data_store().get_muted_by_users(m_client.user_id);
         
         bool broadcast;
         switch (type)
@@ -447,11 +447,18 @@ final class RoomConnection : Connection
             else
             {
                 // Otherwise send it just to the requested player if they havent muted the sender
+                bool can_send = true;
+                foreach (muted_user_id; muted_by_users) {
+                    if (muted_user_id == target_user_id) {
+                        can_send = false;
+                        break;
+                    }
+                }
 
                 // NOTE: Player ID and local_echo are unused by the client, but we'll pass on what the sender sent anyways.
                 auto payload = MythSocket.encode_payload(target_user_id, local_echo, chat_packet, player_name, message);
                 // m_room.send_packet_to_client(target_user_id, packet_type._directed_data_packet, payload);
-                if (target_user_id in m_room.m_connections && !(m_room.data_store.get_muted_by_users(target_user_id) in m_room.m_connections))
+                if (target_user_id in m_room.connections() && can_send)
                 {
                     m_room.send_packet_to_client(target_user_id, packet_type._directed_data_packet, payload);
                 }

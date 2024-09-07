@@ -1,5 +1,7 @@
 module game_reporter_client;
 
+import metaserver_config;
+
 import vibe.http.client;
 import core.time;
 import vibe.core.log;
@@ -15,19 +17,23 @@ struct GameResult {
 
 class GameReporterClient {
   private HTTPClient client;
+  private string completedUri;
+  private string startedUri;
+  private string apiKey;
 
-  public this() {
+  public this(const(MetaserverConfig) config) {
     client = new HTTPClient();
+    completedUri = config.rank_server_base_url ~ config.game_reporter_completed_uri;
+    startedUri = config.rank_server_base_url ~ config.game_reporter_started_uri;
+    apiKey = config.api_key;
   }
 
   // Method to make a GET request to report which game was played
   public void reportGame(int gameId) {
 
-    auto url = "http://localhost:8080/rank-server/report/games";
-
     auto requester = delegate(scope HTTPClientRequest req) {
         req.method = HTTPMethod.POST;
-        req.headers["bagrada-api-key"] = "test";
+        req.headers["bagrada-api-key"] = apiKey;
         req.writeJsonBody(new GameResult(gameId));
     };
     auto responder = delegate(scope HTTPClientResponse res) {
@@ -40,21 +46,20 @@ class GameReporterClient {
     };
 
     try {
-      requestHTTP(url, requester, responder); 
+      requestHTTP(completedUri, requester, responder); 
 
       return;
     } catch (Exception e) {
         logInfo(e.message);
-        logInfo("Got exception while reporting game to " ~ url);
+        logInfo("Got exception while reporting game to " ~ completedUri);
     }
   }
 
   public void reportGameRecordingStart(const(ubyte[]) data) {
-      auto url = "http://localhost:8080/rank-server/report/gameStart";
 
       auto requester = delegate(scope HTTPClientRequest req) {
           req.method = HTTPMethod.POST;
-          req.headers["bagrada-api-key"] = "test";
+          req.headers["bagrada-api-key"] = apiKey;
           req.writeBody(data);
       };
 
@@ -68,11 +73,11 @@ class GameReporterClient {
       };
 
       try {
-          requestHTTP(url, requester, responder);
+          requestHTTP(startedUri, requester, responder);
           return;
       } catch (Exception e) {
           logInfo(e.message);
-          logInfo("Got exception while reporting game start to " ~ url);
+          logInfo("Got exception while reporting game start to " ~ startedUri);
       }
   }
 

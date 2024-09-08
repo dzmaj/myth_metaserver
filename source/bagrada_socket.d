@@ -151,7 +151,7 @@ class BagradaSocket {
             }
 
             scope(exit) {
-                if (socket.connected) {
+                if (socket !is null && socket.connected) {
                     socket.close();
                 }
             }

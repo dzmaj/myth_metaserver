@@ -22,7 +22,8 @@ enum BagradaMessageType {
     GAME_STARTED,
     GAME_ENDED,
     CHAT_MESSAGE,
-    
+    PLAYER_LOGIN,
+
 
     NUMBER_OF_TYPES
 }
@@ -139,17 +140,20 @@ class BagradaSocket {
     @safe nothrow private void listen(WebSocket socket) {
 
         try {
-            while (socket.waitForData()) {
+            while (socket.connected && socket.waitForData()) {
                 auto messageString = socket.receiveText();
                 log_message("Bagrada server message: %s", messageString);
                 auto message = deserializeJson!BagradaMessage(messageString);
-                runTask({
+                auto task = runTask({
                     handleBagradaMessage(message);
                 });
+                task.join();
             }
 
             scope(exit) {
-                socket.close();
+                if (socket.connected) {
+                    socket.close();
+                }
             }
 
         }

@@ -65,6 +65,7 @@ interface DataStoreInterface
     bool mute_user(int user_id, int muted_user_id);
     int[] get_blocked_users(int user_id);
     bool block_user(int user_id, int blocked_user_id);
+    string get_nick_name(int user_id);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -141,6 +142,11 @@ class DataStoreNull : DataStoreInterface
     bool block_user(int user_id, int blocked_user_id)
     {
         return false; // noop
+    }
+
+    string get_nick_name(int user_id)
+    {
+        return "";
     }
 }
 
@@ -490,6 +496,16 @@ class DataStoreMysql : DataStoreInterface
         auto db = m_db.lockConnection();
         db.execute("INSERT INTO blocked_users (user_id, blocked_user_id) VALUES (?, ?);", user_id, blocked_user_id);
         return true;
+    }
+
+    string get_nick_name(int user_id)
+    {
+        auto db = m_db.lockConnection();
+        string nick_name;
+        db.execute("SELECT nick_name FROM metaserver_users WHERE id = ?;", user_id, (MySQLRow row) {
+            nick_name = row.nick_name.get!string;
+        });
+        return nick_name;
     }
 
     // NOTE: Be a bit careful with state here. These functions can be re-entrant due to

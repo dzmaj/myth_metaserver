@@ -89,8 +89,6 @@ public class RoomServer
     {
         m_login_server = login_server;
 
-        m_rank_client = new RankClient(config);
-        m_game_reporter_client = new GameReporterClient(config);
 
         m_address_ipv4 = resolve_address_to_ipv4(config.server_address, true, m_address_string_ipv4);
         
@@ -113,7 +111,7 @@ public class RoomServer
                 (r.requires_films ? RoomFlags._requires_recording_stream_flag : 0);
 
             auto room_name = r.name.empty() ? "Room " ~ to!string(info.room_id) : r.name;
-            m_rooms ~= new Room(m_login_server, this, room_name, info, config.maximum_users_per_room, m_rank_client, m_game_reporter_client);
+            m_rooms ~= new Room(m_login_server, this, room_name, info, config.maximum_users_per_room);
             lastRoomId = info.room_id;
         }
 
@@ -212,15 +210,14 @@ public class RoomServer
 
     @property public pure nothrow string address_string_ipv4() const { return m_address_string_ipv4; }
     @property public pure nothrow uint address_ipv4() const { return m_address_ipv4; }
+    @property @safe public pure nothrow const(Room[]) rooms() const { return m_rooms; }
     
     private LoginServer m_login_server;
 
     private string m_address_string_ipv4;
     private uint m_address_ipv4;
-    private RankClient m_rank_client;
 
     private HostProxy m_host_proxy;
     private Room[] m_rooms;
     private room_info[] m_room_info;
-    private GameReporterClient m_game_reporter_client;
 };

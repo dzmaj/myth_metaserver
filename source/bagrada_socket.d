@@ -3,6 +3,7 @@ module bagrada_socket;
 import vibe.d;
 import vibe.utils.array;
 import login_server;
+import room;
 import log;
 import vibe.data.json;
 import vibe.core.concurrency;
@@ -51,21 +52,26 @@ class BagradaSocket {
     //process to connect to the bagrada server if it is not already connected, should check every minute
     
     @safe nothrow private void connect() {
-        //connect to the bagrada server
-        try {
-            auto modifier = delegate(scope HTTPClientRequest req) {
-                req.method = HTTPMethod.GET;
-                req.headers["bagrada-api-key"] = m_bagrada_api_key;
-            };
-            socket = connectWebSocketEx(URL(m_bagrada_ws_url), modifier);
+    try {
+        auto modifier = (scope HTTPClientRequest req) {
+            req.method = HTTPMethod.GET;
+            req.headers["bagrada-api-key"] = m_bagrada_api_key;
+        };
+        
+        socket = connectWebSocketEx(URL(m_bagrada_ws_url), modifier);
+        
+        // Start listening only when the socket is successfully connected
+        if (socket !is null && socket.connected) {
             m_listen_task = runTask({
                 listen(socket);
             });
         }
-        catch (Exception e) {
-            log_error_message("Error connecting to bagrada server: %s", e.msg);
-        }
     }
+    catch (Exception e) {
+        log_error_message("Error connecting to bagrada server: %s", e.msg);
+    }
+}
+
 
     @safe nothrow public void send(BagradaMessage message) {
 
@@ -84,7 +90,7 @@ class BagradaSocket {
         try {
             switch (message.type) {
                 case BagradaMessageType.BLUE_BAR:
-                    //handle blue bar
+                    handleBlueBarMessage(message);
                     break;
                 case BagradaMessageType.GAME_STARTED:
                     //handle game started
@@ -104,12 +110,38 @@ class BagradaSocket {
         }
     }
 
+    @trusted nothrow private void handleBlueBarMessage(BagradaMessage message) {
+
+        try {
+            //handle blue bar message
+            //send a message to all the rooms
+            string senderName = "";
+            if (message.sender_id > 0) {
+                senderName = loginServer.data_store().get_nick_name(message.sender_id);
+            } else {
+                senderName = "Bagrada";
+            }
+            string messageString = senderName ~ " : " ~ message.data;
+            log_message("Sending blue bar message to all rooms: %s", messageString);
+            foreach (r; loginServer.m_room_server.rooms()) {
+                try {
+                    auto room = cast(Room)r;
+                    room.send_blue_message(messageString);
+                } catch (Exception e) {
+                    log_error_message("Error sending blue bar message to room: %s", e.msg);
+                }
+            }
+        } catch (Exception e) {
+            log_error_message("Error handling blue bar message: %s", e.msg);
+        }
+    }
+
     @safe nothrow private void listen(WebSocket socket) {
 
         try {
             while (socket.waitForData()) {
                 auto messageString = socket.receiveText();
-                log_debug_message("Bagrada server message: %s", messageString);
+                log_message("Bagrada server message: %s", messageString);
                 auto message = deserializeJson!BagradaMessage(messageString);
                 runTask({
                     handleBagradaMessage(message);
@@ -135,21 +167,18 @@ class BagradaSocket {
 
             for (;;)
             {
+                sleep(reconnect_timer);
                 if (socket is null || !socket.connected) {
                     connect();
                 } else {
                     send(BagradaMessage(BagradaMessageType.KEEP_ALIVE, "ping", 0, 0, 0));
                 }
-                sleep(reconnect_timer);
-                
-
-                //log_message("Login: Finished cleanup (%s clients total)...", m_clients.length);
             }
         } catch (Exception e) {
             try {
                 log_message("Error: ", e.msg);
             } catch (Exception e) {
-                //logging exception, not sure what else to do here, but it has to be caught for this to be nothrow
+                
             }
         }
         

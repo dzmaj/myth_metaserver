@@ -77,15 +77,15 @@ static assert (metaserver_game_aux_data.sizeof == 32);
 class Room
 {
     public this(LoginServer login_server, RoomServer room_server, string room_name,
-                room_info info, int maximum_clients, RankClient rank_client, GameReporterClient game_reporter_client)
+                room_info info, int maximum_clients)
     {
         m_login_server = login_server;
         m_room_server = room_server;
         m_room_info = info;
         m_room_name = room_name;
         m_maximum_clients = maximum_clients;
-        m_rank_client = rank_client;
-        m_game_reporter_client = game_reporter_client;
+        m_rank_client = new RankClient(login_server.config);
+        m_game_reporter_client = new GameReporterClient(login_server.config);
 
         // Set up dot commands
         m_dot_commands["time"] = &dot_time;
@@ -124,7 +124,7 @@ class Room
         }
     }
     // Same as above, but send to whole room
-    private void send_blue_message(string message)
+    public void send_blue_message(string message)
     {
         foreach (line; splitLines(message))
         {
@@ -172,7 +172,7 @@ class Room
         }
 
         if (is_admin) {
-            return [18,18,18];
+            return [17,17,17];
         }
 
         try {

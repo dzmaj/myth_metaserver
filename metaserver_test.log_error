@@ -1,0 +1,3 @@
+2024-09-07 17:30:00: Error listening to bagrada server: Missing non-optional field 'data' of type 'BagradaMessage' (DefaultPolicy(T)).
+2024-09-07 17:32:48: Error sending message to bagrada server: Connection closed while writing data.
+2024-09-07 17:39:48: Error connecting to bagrada server: Failed to connect to [0:0:0:0:0:0:0:1]:8080: refused

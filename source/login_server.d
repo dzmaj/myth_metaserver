@@ -92,8 +92,10 @@ class LoginServer
 
         // Set up login listen socket
         listenTCP(cast(ushort)m_config.login_port, &handle_login_connection, "0.0.0.0");
-
         m_bagrada_socket = new BagradaSocket(this);
+        runTask({
+            m_bagrada_socket.stayConnected();
+        });
         // Finally, set up some maintainance tasks
         runTask(&cleanup);
     }

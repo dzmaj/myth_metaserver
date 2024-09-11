@@ -182,8 +182,8 @@ public struct QueryPlayerInfoReturn
 enum RoomType : short
 {
     unranked = 0,
-    ranked,
     tournament,
+    ranked,
     num
 };
 

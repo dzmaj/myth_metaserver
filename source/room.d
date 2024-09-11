@@ -135,7 +135,7 @@ class Room
 
     // Also if we fail to contact the metaserver for something like this we may or may not want the
     // exception to be thrown in the fiber that triggered it, so do some thinking/testing...
-    private void update_room_data()
+    public void update_room_data()
     {
         m_room_info.player_count = cast(short)this.player_count();
         m_room_info.game_count   = cast(short)this.game_count();
@@ -151,9 +151,9 @@ class Room
         // client.set_caste_bitmap_indices(get_player_rank(client.user_id));
         auto ranks = get_player_rank(client.user_id);
         try {
-            client.set_caste_bitmap_index(RoomType.unranked, ranks[0]);
-            client.set_caste_bitmap_index(RoomType.ranked, ranks[1]);
-            client.set_caste_bitmap_index(RoomType.tournament, ranks[2]);
+            client.set_caste_bitmap_index(RoomType.unranked, ranks[RoomType.unranked]);
+            client.set_caste_bitmap_index(RoomType.ranked, ranks[RoomType.ranked]);
+            client.set_caste_bitmap_index(RoomType.tournament, ranks[RoomType.tournament]);
         } catch (Exception e) {
             log_message("Error setting caste for %d", client.user_id);
         }

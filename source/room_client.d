@@ -166,7 +166,7 @@ class RoomClient : Client
         m_metaserver_player_data.state = player_state.idle;
 
         // These get updated async by the room server
-        m_caste_bitmap_indices[] = [-1, 0, -1]; // No icon
+        m_caste_bitmap_indices[] = [-1, -1, -1]; // No icon
     }
 
     // Flag player as ingame or not

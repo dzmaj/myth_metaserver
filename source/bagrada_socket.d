@@ -37,7 +37,6 @@ class BagradaSocket {
     private string m_bagrada_ws_url;
     private string m_bagrada_api_key;
 
-    private Task m_main_task;
     private Task m_listen_task;
 
     private immutable reconnect_timer = 1.minutes;
@@ -46,8 +45,6 @@ class BagradaSocket {
         this.loginServer = loginServer;
         this.m_bagrada_ws_url = loginServer.config.rank_server_ws_url;
         this.m_bagrada_api_key = loginServer.config.api_key;
-        this.m_main_task = Task.getThis();
-        runTask(&stayConnected);
     }
 
     //process to connect to the bagrada server if it is not already connected, should check every minute
@@ -63,6 +60,7 @@ class BagradaSocket {
         
         // Start listening only when the socket is successfully connected
         if (socket !is null && socket.connected) {
+            log_message("Connected websocket to bagrada server");
             m_listen_task = runTask({
                 listen(socket);
             });
@@ -141,7 +139,7 @@ class BagradaSocket {
 
         try {
             while (socket.connected && socket.waitForData()) {
-                auto messageString = socket.receiveText();
+                auto messageString = socket.receiveText(false);
                 log_message("Bagrada server message: %s", messageString);
                 auto message = deserializeJson!BagradaMessage(messageString);
                 auto task = runTask({
@@ -171,12 +169,17 @@ class BagradaSocket {
 
             for (;;)
             {
-                sleep(reconnect_timer);
-                if (socket is null || !socket.connected) {
-                    connect();
-                } else {
-                    send(BagradaMessage(BagradaMessageType.KEEP_ALIVE, "ping", 0, 0, 0));
+                try {
+                    sleep(reconnect_timer);
+                    if (socket is null || !socket.connected) {
+                        connect();
+                    } else {
+                        send(BagradaMessage(BagradaMessageType.KEEP_ALIVE, "ping", 0, 0, 0));
+                    }
+                } catch (Exception e) {
+                    log_message("Error: ", e.msg);
                 }
+                
             }
         } catch (Exception e) {
             try {

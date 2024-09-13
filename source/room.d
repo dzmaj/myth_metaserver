@@ -608,8 +608,9 @@ class Room
         send_blue_message(caller, ".proxy : view or change host proxy state.");
         send_blue_message(caller, ".time : displays the current server time");
         send_blue_message(caller, ".version : displays the current game version");
-        send_blue_message(caller, ".mute : mutes a user");
-        send_blue_message(caller, ".block : blocks a user from your hosted games");
+        send_blue_message(caller, ".mute/.unmute : mutes/unmutes a user");
+        send_blue_message(caller, ".block/.unblock : blocks/unblocks a user from your hosted games");
+        send_blue_message(caller, ".mutelist/.blocklist : displays your list of muted/blocked users");
         if (m_login_server.data_store.get_user_admin_level(caller.client.user_id) > 0) {
             send_blue_message(caller, "Admin commands:");
             send_blue_message(caller, ".info : displays user info");

@@ -94,6 +94,10 @@ class Room
         m_dot_commands["help"] = &dot_help;
         m_dot_commands["mute"] = &dot_mute;
         m_dot_commands["block"] = &dot_block;
+        m_dot_commands["unblock"] = &dot_unblock;
+        m_dot_commands["unmute"] = &dot_unmute;
+        m_dot_commands["mutelist"] = &dot_mutelist;
+        m_dot_commands["blocklist"] = &dot_blocklist;
 
         m_admin_dot_commands["info"] = &dot_info;
         m_admin_dot_commands["kick"] = &dot_kick;
@@ -474,9 +478,23 @@ class Room
             send_blue_message(caller, "You are now in admin mode.");
         }
         
-        
-        
-        
+    }
+
+    private void dot_blocklist(RoomConnection caller, Nullable!RoomConnection target, string params) {
+        auto blocklist = m_login_server.data_store().get_blocked_users(caller.client.user_id);
+        send_blue_message(caller, format("You have blocked the following users: %s.", blocklist));
+    }
+
+    private void dot_unblock(RoomConnection caller, Nullable!RoomConnection target, string params) {
+        if (target.isNull) {
+            send_blue_message(caller, "You must first select a player by clicking on their name.");
+            return;
+        } else {
+            auto unblocked_user_id = target.get().client.user_id;
+            auto unblocked_by_user_id = caller.client.user_id;
+            m_login_server.data_store().unblock_user(unblocked_by_user_id, unblocked_user_id);
+            send_blue_message(caller, format("You have unblocked user ID %d.", unblocked_user_id));
+        }
     }
 
     private void dot_block(RoomConnection caller, Nullable!RoomConnection target, string params)
@@ -491,6 +509,23 @@ class Room
             m_login_server.data_store().block_user(blocked_by_user_id, blocked_user_id);
             send_blue_message(caller, format("You have blocked user ID %d.", blocked_user_id));
         }
+    }
+
+    private void dot_unmute(RoomConnection caller, Nullable!RoomConnection target, string params) {
+        if (target.isNull) {
+            send_blue_message(caller, "You must first select a player by clicking on their name.");
+            return;
+        } else {
+            auto unmuted_user_id = target.get().client.user_id;
+            auto unmuted_by_user_id = caller.client.user_id;
+            m_login_server.data_store().unmute_user(unmuted_by_user_id, unmuted_user_id);
+            send_blue_message(caller, format("You have unmuted user ID %d.", unmuted_user_id));
+        }
+    }
+
+    private void dot_mutelist(RoomConnection caller, Nullable!RoomConnection target, string params) {
+        auto mutelist = m_login_server.data_store().get_muted_users(caller.client.user_id);
+        send_blue_message(caller, format("You have muted the following users: %s.", mutelist));
     }
 
     private void dot_mute(RoomConnection caller, Nullable!RoomConnection target, string params)

@@ -1113,6 +1113,11 @@ string rankedGameDataByGameTypeToString(game_rank_data[] data)
     private bool m_sent_rec_header = false;
     private RankClient m_rank_client;
     private int[] m_blocked_user_ids;
+    /*
+    private int[] m_muted_user_ids;
+    private int[] m_blocked_by_user_ids;
+    private int[] m_muted_by_user_ids;
+    */
 
     private bool m_client_deaf;
 

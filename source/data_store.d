@@ -66,6 +66,8 @@ interface DataStoreInterface
     int[] get_blocked_users(int user_id);
     bool block_user(int user_id, int blocked_user_id);
     string get_nick_name(int user_id);
+    bool unblock_user(int user_id, int blocked_user_id);
+    bool unmute_user(int user_id, int muted_user_id);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -147,6 +149,16 @@ class DataStoreNull : DataStoreInterface
     string get_nick_name(int user_id)
     {
         return "";
+    }
+
+    bool unblock_user(int user_id, int blocked_user_id)
+    {
+        return false; // noop
+    }
+
+    bool unmute_user(int user_id, int muted_user_id)
+    {
+        return false; // noop
     }
 }
 
@@ -507,6 +519,21 @@ class DataStoreMysql : DataStoreInterface
         });
         return nick_name;
     }
+
+    bool unblock_user(int user_id, int blocked_user_id)
+    {
+        auto db = m_db.lockConnection();
+        db.execute("DELETE FROM blocked_users WHERE user_id = ? AND blocked_user_id = ?;", user_id, blocked_user_id);
+        return true;
+    }
+
+    bool unmute_user(int user_id, int muted_user_id)
+    {
+        auto db = m_db.lockConnection();
+        db.execute("DELETE FROM muted_users WHERE user_id = ? AND muted_user_id = ?;", user_id, muted_user_id);
+        return true;
+    }
+    
 
     // NOTE: Be a bit careful with state here. These functions can be re-entrant due to
     // triggering blocking calls and then having other requests submitted by separate fibers.

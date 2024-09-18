@@ -12,6 +12,8 @@ import metaserver_config;
 import private_api;
 import game_reporter_client;
 import rank_client;
+import orders;
+import data_store;
 
 import std.datetime;
 import std.stdio;
@@ -20,6 +22,7 @@ import std.exception;
 import std.string;
 import std.array;
 import std.typecons;
+import std.algorithm;
 
 import vibe.vibe;
 
@@ -208,6 +211,7 @@ class Room
 
         send_full_room_update_to_client(connection);
         update_room_data();
+        send_order_member_list(connection);
 
         // Finally do any join room actions (blue bar, etc)
         // NOTE: This blocks, so can be dangerous... be careful with login/room races!
@@ -747,6 +751,74 @@ class Room
         aux_data_packet.order = client.order_id;
 
         return MythSocket.encode_payload(aux_data_packet, player_data);
+    }
+    
+    private void send_order_member_list(RoomConnection target_connection)
+    {
+        if (target_connection.client.order_id == 0)
+            return; // Client is not in an order
+
+        auto order_members = get_order_members(target_connection.client.order_id);
+        auto order_list = get_order_list(order_members);
+        // Construct the packet payload
+        ubyte[] packet;
+        
+        // Add member count
+        packet ~= MythSocket.encode_payload(order_list.memberCount);
+
+        // Add each member's data
+        foreach (member; order_list.members)
+        {
+            // Encode player data using the new method
+            auto playerPayload = encode_public_user_info_payload(member, PlayerVerb.add);
+            
+            // Append to packet
+            packet ~= playerPayload;
+        }
+
+        // Send the packet
+        target_connection.send_packet_payload(packet_type._update_order_member_list_packet, packet.idup);
+    }
+
+    
+    private immutable(ubyte)[] encode_public_user_info_payload(in OrderMember orderMember, PlayerVerb verb) const
+    {
+        auto player_data = orderMember.player_data_big_endian();
+
+        metaserver_player_aux_data aux_data_packet;
+        aux_data_packet.verb = cast(ushort)verb;
+        aux_data_packet.flags = (orderMember.player_data.user_id < 12) ? 1 : 0;
+        aux_data_packet.ranking = 0;
+        aux_data_packet.player_id = orderMember.player_data.user_id;
+        aux_data_packet.room_id = 0; // NOTE: Unused in bungie metaserver
+        aux_data_packet.caste = -1;
+        aux_data_packet.player_data_length = cast(short)player_data.length;
+        aux_data_packet.order = cast(short)orderMember.player_data.order_id;
+
+        return MythSocket.encode_payload(aux_data_packet, player_data);
+    }
+
+
+    
+    
+    private PublicUserInfo[] get_order_members(int order_id)
+    {
+        return m_login_server.data_store.get_public_user_info_by_order(order_id);
+    }
+
+    private OrderList get_order_list(PublicUserInfo[] order_members) const
+    {
+        OrderList order_list;
+        order_list.memberCount = cast(int)order_members.length;
+        order_list.members = [];
+        foreach (member; order_members)
+        {
+            PlayerData player_data = PlayerData(member.user_id, false, member.nick_name, member.team_name,
+                member.primary_color, member.secondary_color, member.coat_of_arms_bitmap_index, member.order_id);
+
+            order_list.members ~= new OrderMember(player_data, false);
+        }
+        return order_list;
     }
 
     private static immutable(ubyte)[] encode_game_payload(in Game game, GameVerb verb)

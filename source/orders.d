@@ -3,6 +3,7 @@ module orders;
 import private_api;
 import mac_roman;
 import endian;
+import room_client;
 
 import std.string;
 import std.array;
@@ -25,11 +26,22 @@ class OrderMember {
         // Swap endian if necessary and return a copy
         union player_data_union
         {
-            ubyte[PlayerData.sizeof] bytes = void;
-            PlayerData data;
+            ubyte[metaserver_player_data.sizeof] bytes = void;
+            metaserver_player_data data;
         }
+        metaserver_player_data mspd = metaserver_player_data(
+            cast(byte)player_data.coat_of_arms_bitmap_index,
+            cast(byte)-1,
+            cast(short)0,
+            int_to_rgb_color(player_data.primary_color),
+            int_to_rgb_color(player_data.secondary_color),
+            cast(short)player_data.order_id,
+            cast(short)player_data.game_version,
+            cast(short)player_data.build_number
+        );
         player_data_union player_data_big_endian = void;
-        player_data_big_endian.data = native_to_big_endian(player_data);
+        player_data_big_endian.data = native_to_big_endian(mspd);
+        // Pad the result bytes up to a total of 128 bytes
         ubyte[] result_bytes = player_data_big_endian.bytes.dup;
         result_bytes ~= string_to_mac_roman(player_data.nick_name);
         result_bytes ~= string_to_mac_roman(player_data.team_name);
@@ -42,4 +54,9 @@ class OrderMember {
 struct OrderList {
     int memberCount;
     OrderMember[] members;
+}
+
+struct OrderMemberShort {
+    uint user_id;
+    bool online;
 }

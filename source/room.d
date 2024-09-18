@@ -148,6 +148,7 @@ class Room
         m_room_info.game_count   = cast(short)this.game_count();
         foreach (user_id, connection; m_connections) {
             update_player_rank(connection.client);
+            send_update_order_member_list(connection);
         }
         // NOTE: Could check if it's really dirty/changed, but always mark it for now in case
         // the client is somehow out of sync.
@@ -211,7 +212,7 @@ class Room
 
         send_full_room_update_to_client(connection);
         update_room_data();
-        send_order_member_list(connection);
+        send_update_order_member_list(connection);
 
         // Finally do any join room actions (blue bar, etc)
         // NOTE: This blocks, so can be dangerous... be careful with login/room races!
@@ -752,12 +753,9 @@ class Room
 
         return MythSocket.encode_payload(aux_data_packet, player_data);
     }
-    
-    private void send_order_member_list(RoomConnection target_connection)
-    {
-        if (target_connection.client.order_id == 0)
-            return; // Client is not in an order
 
+    public void send_update_order_member_list(RoomConnection target_connection)
+    {
         auto order_members = get_order_members(target_connection.client.order_id);
         auto order_list = get_order_list(order_members);
         // Construct the packet payload
@@ -765,19 +763,57 @@ class Room
         
         // Add member count
         packet ~= MythSocket.encode_payload(order_list.memberCount);
+        foreach (member; order_list.members)
+        {
+            OrderMemberShort member_short = OrderMemberShort(member.player_data.user_id, false);
+            packet ~= MythSocket.encode_payload(member_short);
+        }
+        log_message("send_update_order_member_list: Sent packet of size %d bytes to client %d", 
+                    packet.length, target_connection.client.user_id);
+
+        target_connection.send_packet_payload(packet_type._update_order_member_list_packet, packet.idup);
+    }
+    
+    public void send_order_list(RoomConnection target_connection)
+    {
+        if (target_connection.client.order_id == 0)
+        {
+            log_debug_message("send_order_list: Client %d is not in an order, skipping", target_connection.client.user_id);
+            return; // Client is not in an order
+        }
+
+        auto order_members = get_order_members(target_connection.client.order_id);
+        auto order_list = get_order_list(order_members);
+        // Construct the packet payload
+        ubyte[] packet;     
+        
+        // Add member count
+        // packet ~= MythSocket.encode_payload(order_list.memberCount);
+
+        log_debug_message("send_order_list: Sending order list for order %d with %d members to client %d", 
+                    target_connection.client.order_id, order_list.memberCount, target_connection.client.user_id);
 
         // Add each member's data
         foreach (member; order_list.members)
         {
+
+            
+            // Add 4 bytes of 0s
+            packet ~= [0, 0, 0, 0].to!(ubyte[4]); // Add 4 bytes of 0s
             // Encode player data using the new method
-            auto playerPayload = encode_public_user_info_payload(member, PlayerVerb.add);
+            auto playerPayload = encode_public_user_info_payload(member, PlayerVerb.change);
             
             // Append to packet
             packet ~= playerPayload;
+
+            log_debug_message("send_order_list: Added member %s (ID: %d) to packet, playerPayload size is %d", 
+                        member.player_data.nick_name, member.player_data.user_id, playerPayload.length);
         }
 
         // Send the packet
-        target_connection.send_packet_payload(packet_type._update_order_member_list_packet, packet.idup);
+        target_connection.send_packet(packet_type._order_list_packet, packet.idup);
+        log_message("send_order_list: Sent packet of size %d bytes to client %d", 
+                    packet.length, target_connection.client.user_id);
     }
 
     
@@ -795,6 +831,10 @@ class Room
         aux_data_packet.player_data_length = cast(short)player_data.length;
         aux_data_packet.order = cast(short)orderMember.player_data.order_id;
 
+        log_message("encode_public_user_info_payload: Encoded member %s (ID: %d, Order: %d, Verb: %s)", 
+                    orderMember.player_data.nick_name, aux_data_packet.player_id, 
+                    aux_data_packet.order, verb);
+
         return MythSocket.encode_payload(aux_data_packet, player_data);
     }
 
@@ -803,7 +843,9 @@ class Room
     
     private PublicUserInfo[] get_order_members(int order_id)
     {
-        return m_login_server.data_store.get_public_user_info_by_order(order_id);
+        auto members = m_login_server.data_store.get_public_user_info_by_order(order_id);
+        log_debug_message("get_order_members: Retrieved %d members for order %d", members.length, order_id);
+        return members;
     }
 
     private OrderList get_order_list(PublicUserInfo[] order_members) const
@@ -817,7 +859,10 @@ class Room
                 member.primary_color, member.secondary_color, member.coat_of_arms_bitmap_index, member.order_id);
 
             order_list.members ~= new OrderMember(player_data, false);
+            log_debug_message("get_order_list: Added member %s (ID: %d) to order list", 
+                        member.nick_name, member.user_id);
         }
+        log_debug_message("get_order_list: Created order list with %d members", order_list.memberCount);
         return order_list;
     }
 

@@ -489,14 +489,15 @@ final class RoomConnection : Connection
 
     private void handle_buddy_query(MythSocket socket)
     {
-        //log_message("**** handle_buddy_query() : unimplemented ****");
+        log_message("**** handle_buddy_query() : unimplemented ****");
         socket.receive_packet_payload();
     }
 
     private void handle_order_query(MythSocket socket)
     {
-        //log_message("**** handle_order_query() : unimplemented ****");
+        log_message("**** handle_order_query()");
         socket.receive_packet_payload();
+        m_room.send_order_list(this);
     }
 
     // Game-related packets

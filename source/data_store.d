@@ -247,7 +247,7 @@ class DataStoreMysql : DataStoreInterface
                 result.primary_color                = row.primary_color.get!int;
                 result.secondary_color              = row.secondary_color.get!int;
                 result.coat_of_arms_bitmap_index    = row.coat_of_arms_bitmap_index.get!int;
-                result.order_id                     = row.order_id.get!int;
+                result.order_id                     = row.order_id.isNull ? 0 : row.order_id.get!int;
             }
 
             // Check if the user is banned from the metaserver
@@ -585,7 +585,7 @@ class DataStoreMysql : DataStoreInterface
             result.primary_color = row.primary_color.get!int;
             result.secondary_color = row.secondary_color.get!int;
             result.coat_of_arms_bitmap_index = row.coat_of_arms_bitmap_index.get!int;
-            result.order_id = row.order_id.get!int;
+            result.order_id = row.order_id.isNull ? 0 : row.order_id.get!int;
         });
         return result;
     }
@@ -602,7 +602,7 @@ class DataStoreMysql : DataStoreInterface
                 row.primary_color.get!int,
                 row.secondary_color.get!int,
                 row.coat_of_arms_bitmap_index.get!int,
-                row.order_id.get!int
+                row.order_id.isNull ? 0 : row.order_id.get!int
             );
         });
         return result;

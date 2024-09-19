@@ -825,203 +825,152 @@ final class RoomConnection : Connection
 
         // Look up client in room
         auto client_connection = m_room.find_client_in_room(user_id);
-        if (!client_connection.isNull())
+        bool is_online = !client_connection.isNull();
+
+        player_info_packet info;
+        string login, nick_name, order_name, city, state, country, quote;
+
+        if (is_online)
         {
             auto client = client_connection.get().client;
-            player_info_packet info;
-
-            string login = to!string(client.user_id);
-            string order_name = "";
-
+            login = to!string(client.user_id);
+            nick_name = client.player_data.nick_name;
+            
             info.primary_color = client.primary_color;
             info.secondary_color = client.secondary_color;
             info.icon_index = client.coat_of_arms_bitmap_index;
-            if (client.user_id < 12)
-            {
-                info.administrator_flag = true;
-                info.bungie_employee_flag = true;
-            }
-            else
-            {
-                info.administrator_flag = false;
-                info.bungie_employee_flag = false;
-            }
+            info.administrator_flag = client.user_id < 12;
+            info.bungie_employee_flag = client.user_id < 12;
+            info.order_index = cast(short)client.player_data.order_id;
 
             if (client.guest)
                 login = "Guest";
-
-            auto server_info = m_login_server.data_store.get_player_info(client.user_id);
-            // Get score info from game reporter client
-            auto score_info = m_rank_client.getUserScoreInfo(client.user_id);
-
-            // Fill in stats data
-
-            {
-                // For "Total" stats myth uses info.ranked_score_datum and info.overall_rank_data.ranked_game_data
-                // For per-scoring stats myth uses info.ranked_score_datum_by_game_type[] and info.overall_rank_data.ranked_game_data_by_game_type[]
-
-                info.ranked_score_datum.games_played = cast(short) score_info["0"].games;
-                info.ranked_score_datum.numerical_ranking = cast(short) score_info["0"].rank;
-                //TODO                 info.overall_rank_data.total_users        = server_info.stats_total.total_player_count;
-                int rankedPlayerCount = m_rank_client.getRankedPlayerCount();
-                info.overall_rank_data.total_users = rankedPlayerCount;
-
-                // String into null terminated - must manually convert to mac roman since it's not a "string", but a char array
-                {
-                    ubyte[] encoded_player = string_to_mac_roman(score_info["0"].topRanked);
-                    size_t length = min(encoded_player.length, info.overall_rank_data
-                            .ranked_game_data.top_ranked_player.sizeof - 1);
-                    info.overall_rank_data.ranked_game_data.top_ranked_player[0 .. length] = encoded_player[0 .. length];
-                    info.overall_rank_data.ranked_game_data.top_ranked_player[length] = 0; // Null terminate
-                }
-
-                info.ranked_score_datum.points = cast(short) score_info["0"].points;
-                info.overall_rank_data.ranked_game_data.points.best = score_info["0"].topPoints;
-                info.overall_rank_data.ranked_game_data.points.average = score_info["0"].points;
-
-                info.ranked_score_datum.wins = cast(short) score_info["0"].wins;
-                info.overall_rank_data.ranked_game_data.wins.best = score_info["0"].topWins;
-                info.overall_rank_data.ranked_game_data.wins.average = score_info["0"].wins;
-
-                info.ranked_score_datum.damage_inflicted = score_info["0"].damageGiven;
-                info.overall_rank_data.ranked_game_data.damage_inflicted.best = score_info["0"]
-                    .topDamageGiven;
-                info.overall_rank_data.ranked_game_data.damage_inflicted.average = score_info["0"]
-                    .damageGiven;
-
-                info.ranked_score_datum.damage_received = score_info["0"].damageTaken;
-                info.overall_rank_data.ranked_game_data.damage_received.best = score_info["0"]
-                    .topDamageTaken;
-                info.overall_rank_data.ranked_game_data.damage_received.average = score_info["0"]
-                    .damageTaken;
-
-                // Loop over the 6 game types and report stats for each. This is the order that these data structures show up in Myth for whatever reason
-                /** 
-            foreach(i; [1, 2, 4, 5, 0, 7])
-            0   |    Total               0
-            1   1   Duel                3
-            2   2   FFA                 4
-            3   4   Small 2-Team        6
-            4   5   Large 2-Team        7
-            5   0   Team FFA            8
-            6   7   WWII                2
-            7   ?   Other 3rd Party     5
-            8   ?   Coop                1
-
-            //Original string list
-            Total
-            Steal the Bacon
-            Last Man on the Hill
-            Flag Rally
-            Capture the Flag
-            Body Count
-            Territories
-            Captures
-            King of the Hill
-            Stampede!
-            Assassin
-            Hunting
-            Balls On Parade
-            Scavenger Hunt
-            King of the Hill (TFL)
-            King of the Map
-            Custom
-
-            // Game types
-            BODY_COUNT(0),
-            STEAL_THE_BACON(1),
-            LAST_MAN_ON_THE_HILL(2),
-            SCAVENGER_HUNT(3),
-            FLAG_RALLY(4),
-            CAPTURE_THE_FLAG(5),
-            BALLS_ON_PARADE(6),
-            TERRITORIES(7),
-            CAPTURES(8),
-            KING_OF_THE_HILL(9),
-            STAMPEDE(10),
-            ASSASSIN(11),
-            HUNTING(12),
-            CUSTOM(13),
-            KING_OF_THE_HILL_TFL(14),
-            KING_OF_THE_MAP(15);
-
-            */
-                int[int] map = [
-                    1: 3,
-                    2: 4,
-                    4: 6,
-                    5: 7,
-                    7: 2,
-                    // not sure if ww2/3p match up correctly yet
-                    8: 5,
-                    9: 1,
-                    0: 8
-
-                ];
-
-                foreach (i, j; map)
-                {
-                    if ((to!string(j) in score_info) == null)
-                    {
-                        continue;
-                    }
-
-                    // String into null terminated - must manually convert to mac roman since it's not a "string", but a char array
-                    {
-                        ubyte[] encoded_player = string_to_mac_roman(
-                            score_info[to!string(j)].topRanked);
-                        size_t length = min(encoded_player.length, info.overall_rank_data
-                                .ranked_game_data.top_ranked_player.sizeof - 1);
-                        info.overall_rank_data.ranked_game_data_by_game_type[i].top_ranked_player[0 .. length] = encoded_player[0 .. length];
-                        info.overall_rank_data.ranked_game_data_by_game_type[i].top_ranked_player[length] = 0; // Null terminate
-                    }
-
-                    info.ranked_score_datum_by_game_type[i].numerical_ranking = cast(
-                        short) score_info[to!string(j)].rank;
-
-                    info.ranked_score_datum_by_game_type[i].games_played = cast(
-                        short) score_info[to!string(j)].games;
-
-                    info.ranked_score_datum_by_game_type[i].wins = cast(
-                        short) score_info[to!string(j)].wins;
-                    info.overall_rank_data.ranked_game_data_by_game_type[i].wins.best = score_info[to!string(
-                            j)].topWins;
-                    info.overall_rank_data.ranked_game_data_by_game_type[i].wins.average = score_info[to!string(
-                            j)].wins;
-
-                    info.ranked_score_datum_by_game_type[i].points = cast(
-                        short) score_info[to!string(j)].points;
-                    info.overall_rank_data.ranked_game_data_by_game_type[i].points.best = score_info[to!string(
-                            j)].topPoints;
-                    info.overall_rank_data.ranked_game_data_by_game_type[i].points.average = score_info[to!string(
-                            j)].points;
-
-                    info.ranked_score_datum_by_game_type[i].damage_inflicted = score_info[to!string(
-                            j)].damageGiven;
-                    info.overall_rank_data.ranked_game_data_by_game_type[i].damage_inflicted.best = score_info[to!string(
-                            j)].topDamageGiven;
-                    info.overall_rank_data.ranked_game_data_by_game_type[i].damage_inflicted.average = score_info[to!string(
-                            j)].damageGiven;
-
-                    info.ranked_score_datum_by_game_type[i].damage_received = score_info[to!string(
-                            j)].damageTaken;
-                    info.overall_rank_data.ranked_game_data_by_game_type[i].damage_received.best = score_info[to!string(
-                            j)].topDamageTaken;
-                    info.overall_rank_data.ranked_game_data_by_game_type[i].damage_received.average = score_info[to!string(
-                            j)].damageTaken;
-                }
-            }
-
-            send_packet(packet_type._player_info_packet,
-                info, login, client.player_data.nick_name, order_name,
-                server_info.city, server_info.state, server_info.country, server_info.quote);
-
-            log_debug_message("Player Info Packet: %s", playerInfoPacketToString(info));
         }
         else
         {
-            //handle case where client is not in room
-            //Will need to query database for this
+            // Fetch basic info from database for offline players
+            auto basic_info = m_login_server.data_store.get_public_user_info(user_id);
+            login = to!string(user_id);
+            nick_name = basic_info.nick_name;
+            
+            info.primary_color = int_to_rgb_color(basic_info.primary_color);
+            info.secondary_color = int_to_rgb_color(basic_info.secondary_color);
+            info.icon_index = cast(short)basic_info.coat_of_arms_bitmap_index;
+            info.administrator_flag = user_id < 12;
+            info.bungie_employee_flag = user_id < 12;
+            info.order_index = cast(short)basic_info.order_id;
+        }
+
+        auto server_info = m_login_server.data_store.get_player_info(user_id);
+        auto score_info = m_rank_client.getUserScoreInfo(user_id);
+
+        // Fill in stats data
+        fill_player_stats(info, score_info);
+
+        city = server_info.city;
+        state = server_info.state;
+        country = server_info.country;
+        quote = server_info.quote;
+
+        send_packet(packet_type._player_info_packet,
+            info, login, nick_name, order_name,
+            city, state, country, quote);
+
+        log_debug_message("Player Info Packet: %s", playerInfoPacketToString(info));
+    }
+
+    private void fill_player_stats(ref player_info_packet info, ScoreInfo[string] score_info)
+    {
+        // Fill in the stats data for both online and offline players
+        // This function contains the code that was previously in the large stats block
+
+        // Total stats
+        info.ranked_score_datum.games_played = cast(short) score_info["0"].games;
+        info.ranked_score_datum.numerical_ranking = cast(short) score_info["0"].rank;
+        int rankedPlayerCount = m_rank_client.getRankedPlayerCount();
+        info.overall_rank_data.total_users = rankedPlayerCount;
+
+        // String into null terminated - must manually convert to mac roman since it's not a "string", but a char array
+        {
+            ubyte[] encoded_player = string_to_mac_roman(score_info["0"].topRanked);
+            size_t length = min(encoded_player.length, info.overall_rank_data
+                    .ranked_game_data.top_ranked_player.sizeof - 1);
+            info.overall_rank_data.ranked_game_data.top_ranked_player[0 .. length] = encoded_player[0 .. length];
+            info.overall_rank_data.ranked_game_data.top_ranked_player[length] = 0; // Null terminate
+        }
+
+        info.ranked_score_datum.points = cast(short) score_info["0"].points;
+        info.overall_rank_data.ranked_game_data.points.best = score_info["0"].topPoints;
+        info.overall_rank_data.ranked_game_data.points.average = score_info["0"].points;
+
+        info.ranked_score_datum.wins = cast(short) score_info["0"].wins;
+        info.overall_rank_data.ranked_game_data.wins.best = score_info["0"].topWins;
+        info.overall_rank_data.ranked_game_data.wins.average = score_info["0"].wins;
+
+        info.ranked_score_datum.damage_inflicted = score_info["0"].damageGiven;
+        info.overall_rank_data.ranked_game_data.damage_inflicted.best = score_info["0"]
+            .topDamageGiven;
+        info.overall_rank_data.ranked_game_data.damage_inflicted.average = score_info["0"]
+            .damageGiven;
+
+        info.ranked_score_datum.damage_received = score_info["0"].damageTaken;
+        info.overall_rank_data.ranked_game_data.damage_received.best = score_info["0"]
+            .topDamageTaken;
+        info.overall_rank_data.ranked_game_data.damage_received.average = score_info["0"]
+            .damageTaken;
+
+        // Game type specific stats
+        int[int] map = [1: 3, 2: 4, 4: 6, 5: 7, 7: 2, 8: 5, 9: 1, 0: 8];
+        foreach (i, j; map)
+        {
+            if ((to!string(j) in score_info) == null)
+            {
+                continue;
+            }
+
+            // String into null terminated - must manually convert to mac roman since it's not a "string", but a char array
+            {
+                ubyte[] encoded_player = string_to_mac_roman(
+                    score_info[to!string(j)].topRanked);
+                size_t length = min(encoded_player.length, info.overall_rank_data
+                        .ranked_game_data.top_ranked_player.sizeof - 1);
+                info.overall_rank_data.ranked_game_data_by_game_type[i].top_ranked_player[0 .. length] = encoded_player[0 .. length];
+                info.overall_rank_data.ranked_game_data_by_game_type[i].top_ranked_player[length] = 0; // Null terminate
+            }
+
+            info.ranked_score_datum_by_game_type[i].numerical_ranking = cast(
+                short) score_info[to!string(j)].rank;
+
+            info.ranked_score_datum_by_game_type[i].games_played = cast(
+                short) score_info[to!string(j)].games;
+
+            info.ranked_score_datum_by_game_type[i].wins = cast(
+                short) score_info[to!string(j)].wins;
+            info.overall_rank_data.ranked_game_data_by_game_type[i].wins.best = score_info[to!string(
+                    j)].topWins;
+            info.overall_rank_data.ranked_game_data_by_game_type[i].wins.average = score_info[to!string(
+                    j)].wins;
+
+            info.ranked_score_datum_by_game_type[i].points = cast(
+                short) score_info[to!string(j)].points;
+            info.overall_rank_data.ranked_game_data_by_game_type[i].points.best = score_info[to!string(
+                    j)].topPoints;
+            info.overall_rank_data.ranked_game_data_by_game_type[i].points.average = score_info[to!string(
+                    j)].points;
+
+            info.ranked_score_datum_by_game_type[i].damage_inflicted = score_info[to!string(
+                    j)].damageGiven;
+            info.overall_rank_data.ranked_game_data_by_game_type[i].damage_inflicted.best = score_info[to!string(
+                    j)].topDamageGiven;
+            info.overall_rank_data.ranked_game_data_by_game_type[i].damage_inflicted.average = score_info[to!string(
+                    j)].damageGiven;
+
+            info.ranked_score_datum_by_game_type[i].damage_received = score_info[to!string(
+                    j)].damageTaken;
+            info.overall_rank_data.ranked_game_data_by_game_type[i].damage_received.best = score_info[to!string(
+                    j)].topDamageTaken;
+            info.overall_rank_data.ranked_game_data_by_game_type[i].damage_received.average = score_info[to!string(
+                    j)].damageTaken;
         }
     }
 
@@ -1156,3 +1105,4 @@ final class RoomConnection : Connection
 
     private Exception m_pending_exception;
 };
+

@@ -9,6 +9,9 @@ dub.selections.json
 *.pdb
 *.m2rec
 *.log
+*.log_debug
+*.log_error
+*.log_chat
 recordings/
 metaserver_config.json
 www_config.json

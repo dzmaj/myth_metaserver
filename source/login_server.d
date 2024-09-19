@@ -389,7 +389,7 @@ class LoginServer
             auto client = new LoggedInClient();
             client.m_player_data.guest = login_return.guest;
             client.m_player_data.user_id = user_id;
-            client.m_player_data.order_id = -1;
+            client.m_player_data.order_id = login_return.order_id;
             client.m_player_data.nick_name = login_return.nick_name;
             client.m_player_data.team_name = login_return.team_name;
             client.m_player_data.primary_color = login_return.primary_color;

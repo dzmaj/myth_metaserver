@@ -45,11 +45,29 @@ public struct UserLoginReturn
     int primary_color;
     int secondary_color;
     int coat_of_arms_bitmap_index;
-
+    int order_id;
     // Error info
     bool banned = false;
     string banned_reason;
 };
+
+public struct PublicUserInfo
+{
+    int user_id;
+    string nick_name;
+    string team_name;
+    int primary_color;
+    int secondary_color;
+    int coat_of_arms_bitmap_index;
+    int order_id;
+}
+public struct OrderInfo
+{
+    int id;
+    int owner_id;
+    string name;
+    string description;
+}
 
 interface DataStoreInterface
 {
@@ -68,6 +86,9 @@ interface DataStoreInterface
     string get_nick_name(int user_id);
     bool unblock_user(int user_id, int blocked_user_id);
     bool unmute_user(int user_id, int muted_user_id);
+    PublicUserInfo get_public_user_info(int user_id);
+    PublicUserInfo[] get_public_user_info_by_order(int order_id);
+    OrderInfo get_order_info(int order_id);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -84,6 +105,7 @@ class DataStoreNull : DataStoreInterface
         result.primary_color             = params.primary_color;
         result.secondary_color           = params.secondary_color;
         result.coat_of_arms_bitmap_index = params.coat_of_arms_bitmap_index;
+        result.order_id                  = 0;
         return result;
     }
 
@@ -160,6 +182,21 @@ class DataStoreNull : DataStoreInterface
     {
         return false; // noop
     }
+
+    PublicUserInfo get_public_user_info(int user_id)
+    {
+        return PublicUserInfo();
+    }
+
+    PublicUserInfo[] get_public_user_info_by_order(int order_id)
+    {
+        return [];
+    }
+
+    OrderInfo get_order_info(int order_id)
+    {
+        return OrderInfo();
+    }
 }
 
 
@@ -186,12 +223,14 @@ class DataStoreMysql : DataStoreInterface
         result.secondary_color              = params.secondary_color;
         result.coat_of_arms_bitmap_index    = params.coat_of_arms_bitmap_index;
         result.banned                       = false;
+        result.order_id                     = 0;
 
         db.execute(
                 "SELECT
                     nick_name, team_name, primary_color, secondary_color, coat_of_arms_bitmap_index,
                     IF(banned_until IS NULL OR (NOW() - banned_until > 0), 0, 1) as banned,
                     banned_reason,
+                    order_id,
                     last_login_datetime
                 FROM metaserver_users
                 WHERE id = ?;", user_id, (MySQLRow row) {
@@ -208,6 +247,7 @@ class DataStoreMysql : DataStoreInterface
                 result.primary_color                = row.primary_color.get!int;
                 result.secondary_color              = row.secondary_color.get!int;
                 result.coat_of_arms_bitmap_index    = row.coat_of_arms_bitmap_index.get!int;
+                result.order_id                     = row.order_id.get!int;
             }
 
             // Check if the user is banned from the metaserver
@@ -267,6 +307,7 @@ class DataStoreMysql : DataStoreInterface
         result.primary_color             = params.primary_color;
         result.secondary_color           = params.secondary_color;
         result.coat_of_arms_bitmap_index = params.coat_of_arms_bitmap_index;
+        result.order_id                  = 0;
 
         auto db = m_db.lockConnection();
 
@@ -533,7 +574,52 @@ class DataStoreMysql : DataStoreInterface
         db.execute("DELETE FROM muted_users WHERE user_id = ? AND muted_user_id = ?;", user_id, muted_user_id);
         return true;
     }
-    
+
+    PublicUserInfo get_public_user_info(int user_id)
+    {
+        auto db = m_db.lockConnection();
+        PublicUserInfo result;
+        db.execute("SELECT nick_name, team_name, primary_color, secondary_color, coat_of_arms_bitmap_index, order_id FROM metaserver_users WHERE id = ?;", user_id, (MySQLRow row) {
+            result.nick_name = row.nick_name.get!string;
+            result.team_name = row.team_name.get!string;
+            result.primary_color = row.primary_color.get!int;
+            result.secondary_color = row.secondary_color.get!int;
+            result.coat_of_arms_bitmap_index = row.coat_of_arms_bitmap_index.get!int;
+            result.order_id = row.order_id.get!int;
+        });
+        return result;
+    }
+
+    PublicUserInfo[] get_public_user_info_by_order(int order_id)
+    {
+        auto db = m_db.lockConnection();
+        PublicUserInfo[] result;
+        db.execute("SELECT id, nick_name, team_name, primary_color, secondary_color, coat_of_arms_bitmap_index, order_id FROM metaserver_users WHERE order_id = ?;", order_id, (MySQLRow row) {
+            result ~= PublicUserInfo(
+                row.id.get!int,
+                row.nick_name.get!string,
+                row.team_name.get!string,
+                row.primary_color.get!int,
+                row.secondary_color.get!int,
+                row.coat_of_arms_bitmap_index.get!int,
+                row.order_id.get!int
+            );
+        });
+        return result;
+    }
+
+    OrderInfo get_order_info(int order_id)
+    {
+        auto db = m_db.lockConnection();
+        OrderInfo result;
+        db.execute("SELECT name, description, owner_id, id FROM orders WHERE id = ?;", order_id, (MySQLRow row) {
+            result.name = row.name.get!string;
+            result.description = row.description.get!string;
+            result.owner_id = row.owner_id.get!int;
+            result.id = row.id.get!int;
+        });
+        return result;
+    }
 
     // NOTE: Be a bit careful with state here. These functions can be re-entrant due to
     // triggering blocking calls and then having other requests submitted by separate fibers.

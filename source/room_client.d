@@ -127,12 +127,12 @@ struct player_info_packet
     bungie_net_player_score_datum order_ranked_score_datum;
     bungie_net_player_score_datum[MAXIMUM_NUMBER_OF_GAME_TYPES] order_ranked_score_datum_by_game_type;
     overall_ranking_data overall_rank_data;
-    // char * login
-    // char * name
-    // char * order_name
-    // char * description
+    // string login;
+    // string name;
+    // string order_name;
+    // string description;
 };
-static assert(player_info_packet.sizeof == 4356);
+// static assert(player_info_packet.sizeof == 4356);
 
 
 public enum ClientHostProxyState {

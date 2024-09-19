@@ -12,6 +12,8 @@ import metaserver_config;
 import private_api;
 import game_reporter_client;
 import rank_client;
+import orders;
+import data_store;
 
 import std.datetime;
 import std.stdio;
@@ -20,6 +22,7 @@ import std.exception;
 import std.string;
 import std.array;
 import std.typecons;
+import std.algorithm;
 
 import vibe.vibe;
 
@@ -145,6 +148,7 @@ class Room
         m_room_info.game_count   = cast(short)this.game_count();
         foreach (user_id, connection; m_connections) {
             update_player_rank(connection.client);
+            send_update_order_member_list(connection);
         }
         // NOTE: Could check if it's really dirty/changed, but always mark it for now in case
         // the client is somehow out of sync.
@@ -208,6 +212,7 @@ class Room
 
         send_full_room_update_to_client(connection);
         update_room_data();
+        send_update_order_member_list(connection);
 
         // Finally do any join room actions (blue bar, etc)
         // NOTE: This blocks, so can be dangerous... be careful with login/room races!
@@ -608,8 +613,9 @@ class Room
         send_blue_message(caller, ".proxy : view or change host proxy state.");
         send_blue_message(caller, ".time : displays the current server time");
         send_blue_message(caller, ".version : displays the current game version");
-        send_blue_message(caller, ".mute : mutes a user");
-        send_blue_message(caller, ".block : blocks a user from your hosted games");
+        send_blue_message(caller, ".mute/.unmute : mutes/unmutes a user");
+        send_blue_message(caller, ".block/.unblock : blocks/unblocks a user from your hosted games");
+        send_blue_message(caller, ".mutelist/.blocklist : displays your list of muted/blocked users");
         if (m_login_server.data_store.get_user_admin_level(caller.client.user_id) > 0) {
             send_blue_message(caller, "Admin commands:");
             send_blue_message(caller, ".info : displays user info");
@@ -746,6 +752,118 @@ class Room
         aux_data_packet.order = client.order_id;
 
         return MythSocket.encode_payload(aux_data_packet, player_data);
+    }
+
+    public void send_update_order_member_list(RoomConnection target_connection)
+    {
+        auto order_members = get_order_members(target_connection.client.order_id);
+        auto order_list = get_order_list(order_members);
+        // Construct the packet payload
+        ubyte[] packet;
+        
+        // Add member count
+        packet ~= MythSocket.encode_payload(order_list.memberCount);
+        foreach (member; order_list.members)
+        {
+            OrderMemberShort member_short = OrderMemberShort(member.player_data.user_id, false);
+            packet ~= MythSocket.encode_payload(member_short);
+        }
+        log_message("send_update_order_member_list: Sent packet of size %d bytes to client %d", 
+                    packet.length, target_connection.client.user_id);
+
+        target_connection.send_packet_payload(packet_type._update_order_member_list_packet, packet.idup);
+    }
+    
+    public void send_order_list(RoomConnection target_connection)
+    {
+        if (target_connection.client.order_id == 0)
+        {
+            log_debug_message("send_order_list: Client %d is not in an order, skipping", target_connection.client.user_id);
+            return; // Client is not in an order
+        }
+
+        auto order_members = get_order_members(target_connection.client.order_id);
+        auto order_list = get_order_list(order_members);
+        // Construct the packet payload
+        ubyte[] packet;     
+        
+        // Add member count
+        // packet ~= MythSocket.encode_payload(order_list.memberCount);
+
+        log_debug_message("send_order_list: Sending order list for order %d with %d members to client %d", 
+                    target_connection.client.order_id, order_list.memberCount, target_connection.client.user_id);
+
+        // Add each member's data
+        foreach (member; order_list.members)
+        {
+
+            
+            // Add 4 bytes of 0s
+            packet ~= [0, 0, 0, 0].to!(ubyte[4]); // Add 4 bytes of 0s
+            // Encode player data using the new method
+            auto playerPayload = encode_public_user_info_payload(member, PlayerVerb.change);
+            
+            // Append to packet
+            packet ~= playerPayload;
+
+            log_debug_message("send_order_list: Added member %s (ID: %d) to packet, playerPayload size is %d", 
+                        member.player_data.nick_name, member.player_data.user_id, playerPayload.length);
+        }
+
+        // Send the packet
+        target_connection.send_packet(packet_type._order_list_packet, packet.idup);
+        log_message("send_order_list: Sent packet of size %d bytes to client %d", 
+                    packet.length, target_connection.client.user_id);
+    }
+
+    
+    private immutable(ubyte)[] encode_public_user_info_payload(in OrderMember orderMember, PlayerVerb verb) const
+    {
+        auto player_data = orderMember.player_data_big_endian();
+
+        metaserver_player_aux_data aux_data_packet;
+        aux_data_packet.verb = cast(ushort)verb;
+        aux_data_packet.flags = (orderMember.player_data.user_id < 12) ? 1 : 0;
+        aux_data_packet.ranking = 0;
+        aux_data_packet.player_id = orderMember.player_data.user_id;
+        aux_data_packet.room_id = 0; // NOTE: Unused in bungie metaserver
+        aux_data_packet.caste = -1;
+        aux_data_packet.player_data_length = cast(short)player_data.length;
+        aux_data_packet.order = cast(short)orderMember.player_data.order_id;
+
+        log_message("encode_public_user_info_payload: Encoded member %s (ID: %d, Order: %d, Verb: %s)", 
+                    orderMember.player_data.nick_name, aux_data_packet.player_id, 
+                    aux_data_packet.order, verb);
+
+        return MythSocket.encode_payload(aux_data_packet, player_data);
+    }
+
+
+    
+    
+    private PublicUserInfo[] get_order_members(int order_id)
+    {
+        auto members = m_login_server.data_store.get_public_user_info_by_order(order_id);
+        log_debug_message("get_order_members: Retrieved %d members for order %d", members.length, order_id);
+        return members;
+    }
+
+    private OrderList get_order_list(PublicUserInfo[] order_members) const
+    {
+        OrderList order_list;
+        order_list.memberCount = cast(int)order_members.length;
+        order_list.members = [];
+        foreach (member; order_members)
+        {
+            PlayerData player_data = PlayerData(member.user_id, false, member.nick_name, member.team_name,
+                member.primary_color, member.secondary_color, member.coat_of_arms_bitmap_index, member.order_id);
+
+            order_list.members ~= new OrderMember(player_data, false);
+            log_debug_message("get_order_list: Added member %s (ID: %d) to order list", 
+                        member.nick_name, member.user_id);
+        }
+        log_debug_message("get_order_list: Created order list with %d members", order_list.memberCount);
+        return order_list;
     }
 
     private static immutable(ubyte)[] encode_game_payload(in Game game, GameVerb verb)

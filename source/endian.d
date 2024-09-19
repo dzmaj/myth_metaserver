@@ -55,19 +55,15 @@ private string generate_swap_endian(T)(string var, int nesting_level = 0)
 	}
 }
 
-public Unqual!T big_endian_to_native(T)(ref T pi)
+public Unqual!T big_endian_to_native(T)(auto ref const T pi)
 {
-	// Explicitly strip off const, etc. from the type so we can modify it in place.
-	// This could potentially be slightly improved by making swap_endian generate code
-	// to write from the input to output instead, but forward substitution should take
-	// care of that anyways.
-	// TODO: This won't work for stuff with "nested" constness, like an array of const items.
-	Unqual!T p = pi;
-	version(LittleEndian)
-	{
-		mixin(generate_swap_endian!T("p"));
-	}
-	return p;
+    // Create a mutable copy of the input
+    Unqual!T p = cast(Unqual!T)pi;
+    version(LittleEndian)
+    {
+        mixin(generate_swap_endian!T("p"));
+    }
+    return p;
 }
 
-alias big_endian_to_native native_to_big_endian;
+alias native_to_big_endian = big_endian_to_native;

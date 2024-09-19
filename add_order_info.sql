@@ -12,8 +12,8 @@ ADD COLUMN `order_id` INT,
 ADD FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`);
 
 ALTER TABLE `orders`
-ADD COLUMN `order_info` VARCHAR(255)
-ADD COLUMN `owner_id` INT
+ADD COLUMN `description` VARCHAR(255),
+ADD COLUMN `owner_id` INT,
 ADD FOREIGN KEY (`owner_id`) REFERENCES `metaserver_users` (`id`);
 
 CREATE TABLE IF NOT EXISTS `order_members` (

@@ -61,6 +61,13 @@ public struct PublicUserInfo
     int coat_of_arms_bitmap_index;
     int order_id;
 }
+public struct OrderInfo
+{
+    int id;
+    int owner_id;
+    string name;
+    string description;
+}
 
 interface DataStoreInterface
 {
@@ -81,6 +88,7 @@ interface DataStoreInterface
     bool unmute_user(int user_id, int muted_user_id);
     PublicUserInfo get_public_user_info(int user_id);
     PublicUserInfo[] get_public_user_info_by_order(int order_id);
+    OrderInfo get_order_info(int order_id);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -183,6 +191,11 @@ class DataStoreNull : DataStoreInterface
     PublicUserInfo[] get_public_user_info_by_order(int order_id)
     {
         return [];
+    }
+
+    OrderInfo get_order_info(int order_id)
+    {
+        return OrderInfo();
     }
 }
 
@@ -594,7 +607,19 @@ class DataStoreMysql : DataStoreInterface
         });
         return result;
     }
-    
+
+    OrderInfo get_order_info(int order_id)
+    {
+        auto db = m_db.lockConnection();
+        OrderInfo result;
+        db.execute("SELECT name, description, owner_id, id FROM orders WHERE id = ?;", order_id, (MySQLRow row) {
+            result.name = row.name.get!string;
+            result.description = row.description.get!string;
+            result.owner_id = row.owner_id.get!int;
+            result.id = row.id.get!int;
+        });
+        return result;
+    }
 
     // NOTE: Be a bit careful with state here. These functions can be re-entrant due to
     // triggering blocking calls and then having other requests submitted by separate fibers.

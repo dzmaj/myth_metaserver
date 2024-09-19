@@ -864,6 +864,12 @@ final class RoomConnection : Connection
         auto server_info = m_login_server.data_store.get_player_info(user_id);
         auto score_info = m_rank_client.getUserScoreInfo(user_id);
 
+        if (info.order_index > 0)
+        {
+            auto order_info = m_login_server.data_store.get_order_info(info.order_index);
+            order_name = order_info.name;
+        }
+
         // Fill in stats data
         fill_player_stats(info, score_info);
 

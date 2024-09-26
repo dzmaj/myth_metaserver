@@ -65,6 +65,7 @@ enum server_message_type
 	_metaserver_not_supported,
     _login_failed_guests_disallowed,
     _login_failed_guest_name_taken,
+    _room_shutdown_msg,
 	NUMBER_OF_MESSAGE_TYPES
 };
 
@@ -97,6 +98,14 @@ public class DuplicateClientException : ServerMessageException
 	}
 };
 
+public class RoomShutdownException : ServerMessageException
+{
+    @safe this(int room_id)
+    {
+        super(server_message_type._room_shutdown_msg,
+              "Room ID " ~ to!string(room_id) ~ " has been shut down");
+    }
+}
 public class NotLoggedInException : ServerMessageException
 {
 	// TODO: IP address or other info?

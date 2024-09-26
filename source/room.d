@@ -971,4 +971,16 @@ class Room
 
     // A list of all the clients connected to the room, keyed on user ID
     private RoomConnection[int] m_connections;
+
+    public void shutdown()
+    {
+        // Perform any necessary cleanup here
+        // For example, close connections, release resources, etc.
+        foreach (user_id, connection; m_connections)
+        {
+            connection.throw_exception_in_task(new RoomShutdownException(m_room_info.room_id));
+        }
+        m_connections.clear();
+        log_message("Room %d has been shut down", m_room_info.room_id);
+    }
 };

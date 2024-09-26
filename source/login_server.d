@@ -58,7 +58,7 @@ class LoginServer
     {
         m_config = config;
 
-        // For stripping Myth "formatting" modifiers ('|b', etc) out of user names
+        // For stripping Myth "formatting" modifiers out of user names
         m_strip_modifiers_regex = regex("\\|[pbilrcsu]", "gi");
         m_next_guest_id = first_guest_id;
 
@@ -79,7 +79,7 @@ class LoginServer
         {
             auto router = new URLRouter;
             router.get("/status.json", &http_status_json);
-            // Setup WebSocket route
+            setupHttpRoutes(router); // Add this line to set up the new routes
 
             auto settings = new HTTPServerSettings;
             settings.port = cast(ushort)m_config.http_server_port;
@@ -563,4 +563,32 @@ class LoginServer
     }
 
     private LoggedInClient[int] m_clients; // UserID -> Client info
+
+    private void setupHttpRoutes(URLRouter router)
+    {
+        router.post("/create_room", &httpCreateRoom);
+        router.post("/shutdown_room", &httpShutdownRoom);
+    }
+
+    private void httpCreateRoom(HTTPServerRequest req, HTTPServerResponse res)
+    {
+        auto json = req.json;
+        string roomName = json["roomName"].get!string;
+        RoomType roomType = cast(RoomType)json["roomType"].get!int;
+        bool requiresFilms = json["requiresFilms"].get!bool;
+        int maxUsers = json["maxUsers"].get!int;
+        int roomId = "roomId" in json ? json["roomId"].get!int : -1; // Check if roomId exists
+
+        auto room = m_room_server.createRoom(roomName, roomType, requiresFilms, maxUsers, roomId);
+        res.writeBody(`{"status": "success", "roomId": ` ~ to!string(room.room_id) ~ `}`);
+    }
+
+    private void httpShutdownRoom(HTTPServerRequest req, HTTPServerResponse res)
+    {
+        auto json = req.json;
+        int roomId = json["roomId"].get!int;
+
+        m_room_server.shutdownRoom(roomId);
+        res.writeBody(`{"status": "success"}`);
+    }
 };

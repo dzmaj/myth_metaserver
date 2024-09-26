@@ -22,6 +22,8 @@ import std.typecons;
 
 import vibe.vibe;
 
+import std.algorithm; // Add this import
+
 // This often it will set the dirty bit above and force an update
 private immutable client_keep_alive_period = 3.minutes;
 //private immutable client_keep_alive_period = 2.seconds;
@@ -220,4 +222,37 @@ public class RoomServer
     private HostProxy m_host_proxy;
     private Room[] m_rooms;
     private room_info[] m_room_info;
-};
+    
+    public Room createRoom(string roomName, RoomType roomType, bool requiresFilms, int maxUsers, int roomId = -1)
+    {
+        int newRoomId = roomId != -1 ? roomId : (m_rooms.length > 0 ? m_rooms[$-1].room_id + 1 : 0);
+        room_info info;
+        info.room_id = cast(short)newRoomId;
+        info.room_type = roomType;
+        info.host = 0; // 0 means same as metaserver address
+        info.port = cast(ushort)(config.room_start_port + newRoomId);
+        info.player_count = 0;
+        info.game_count = 0;
+        info.room_flags = RoomFlags._supports_recording_stream_flag |
+            (requiresFilms ? RoomFlags._requires_recording_stream_flag : 0);
+
+        auto room = new Room(m_login_server, this, roomName, info, maxUsers);
+        log_message("Created room %d", room.room_id);
+        m_rooms ~= room;
+        m_room_info ~= info;
+        set_room_data_dirty();
+        return room;
+    }
+
+    public void shutdownRoom(int roomId)
+    {
+        auto roomIndex = m_rooms.countUntil!(r => r.room_id == roomId);
+        if (roomIndex != -1)
+        {
+            m_rooms[roomIndex].shutdown();
+            m_rooms = m_rooms.remove(roomIndex);
+            m_room_info = m_room_info.remove(roomIndex);
+            set_room_data_dirty();
+        }
+    }
+}

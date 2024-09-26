@@ -25,3 +25,10 @@ CREATE TABLE IF NOT EXISTS `order_members` (
   FOREIGN KEY (`user_id`) REFERENCES `metaserver_users` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+ALTER TABLE `orders`
+ADD COLUMN `password` VARCHAR(255),
+ADD COLUMN `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE `orders`
+MODIFY COLUMN `description` VARCHAR(255) NOT NULL DEFAULT '';
+

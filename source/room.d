@@ -101,6 +101,8 @@ class Room
         m_dot_commands["unmute"] = &dot_unmute;
         m_dot_commands["mutelist"] = &dot_mutelist;
         m_dot_commands["blocklist"] = &dot_blocklist;
+        m_dot_commands["transfer"] = &dot_transfer;
+        m_dot_commands["balance"] = &dot_balance;
 
         m_admin_dot_commands["info"] = &dot_info;
         m_admin_dot_commands["kick"] = &dot_kick;
@@ -729,6 +731,63 @@ class Room
             send_blue_message(params);
         else
             send_blue_message(target.get(), params);
+    }
+
+    private void dot_balance(RoomConnection caller, Nullable!RoomConnection target, string params)
+    {
+        auto balance = m_login_server.data_store().get_balance(caller.client.user_id);
+        send_blue_message(caller, format("Your current balance is: %d MythCoin.", balance));
+    }
+
+    private void dot_transfer(RoomConnection caller, Nullable!RoomConnection target, string params)
+    {
+        if (target.isNull)
+        {
+            send_blue_message(caller, "You must first select a player by clicking on their name.");
+            return;
+        }
+
+        import std.conv : to;
+        import std.string : strip;
+
+        auto amount_str = strip(params);
+        long amount;
+
+        try
+        {
+            amount = to!long(amount_str);
+        }
+        catch (Exception e)
+        {
+            send_blue_message(caller, "Invalid amount. Please enter a valid number.");
+            return;
+        }
+
+        if (amount <= 0)
+        {
+            send_blue_message(caller, "Amount must be greater than zero.");
+            return;
+        }
+
+        auto from_user_id = caller.client.user_id;
+        auto to_user_id = target.get().client.user_id;
+
+        if (from_user_id == to_user_id)
+        {
+            send_blue_message(caller, "You cannot transfer MythCoin to yourself.");
+            return;
+        }
+
+        try
+        {
+            m_login_server.data_store().transfer_credits(from_user_id, to_user_id, amount);
+            send_blue_message(caller, format("Successfully transferred %d MythCoin to user ID %d.", amount, to_user_id));
+            send_blue_message(target.get(), format("You received %d MythCoin from user ID %d.", amount, from_user_id));
+        }
+        catch (Exception e)
+        {
+            send_blue_message(caller, "Transfer failed: " ~ e.msg);
+        }
     }
 
     private immutable(ubyte)[] encode_player_payload(in RoomClient client, PlayerVerb verb) const

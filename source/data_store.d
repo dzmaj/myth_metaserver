@@ -89,6 +89,8 @@ interface DataStoreInterface
     PublicUserInfo get_public_user_info(int user_id);
     PublicUserInfo[] get_public_user_info_by_order(int order_id);
     OrderInfo get_order_info(int order_id);
+    long get_balance(int user_id);
+    void transfer_credits(int from_user_id, int to_user_id, long amount);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -196,6 +198,16 @@ class DataStoreNull : DataStoreInterface
     OrderInfo get_order_info(int order_id)
     {
         return OrderInfo();
+    }
+
+    long get_balance(int user_id)
+    {
+        return 0;
+    }
+
+    void transfer_credits(int from_user_id, int to_user_id, long amount)
+    {
+        // noop
     }
 }
 
@@ -619,6 +631,39 @@ class DataStoreMysql : DataStoreInterface
             result.id = row.id.get!int;
         });
         return result;
+    }
+
+    long get_balance(int user_id)
+    {
+        auto conn = m_db.lockConnection();
+        // scope(exit) m_db.unlockConnection(conn);
+
+        long result = 0;
+        conn.execute("SELECT balance FROM wallets WHERE id = (SELECT wallet_id FROM metaserver_users WHERE id = ?)", user_id, (MySQLRow row) {
+            result = row.balance.get!long;
+        });
+        return result;
+    }
+
+    void transfer_credits(int from_user_id, int to_user_id, long amount)
+    {
+        auto conn = m_db.lockConnection();
+        // scope(exit) m_db.unlockConnection(conn);
+
+        conn.begin();
+        scope(failure) conn.rollback();
+        scope(success) conn.commit();
+
+        // Check if sender has enough balance
+        long sender_balance = get_balance(from_user_id);
+        if (sender_balance < amount)
+        {
+            throw new Exception("Insufficient balance");
+        }
+
+        // Perform the transfer
+        conn.execute("UPDATE wallets SET balance = balance - ? WHERE id = (SELECT wallet_id FROM metaserver_users WHERE id = ?)", amount, from_user_id);
+        conn.execute("UPDATE wallets SET balance = balance + ? WHERE id = (SELECT wallet_id FROM metaserver_users WHERE id = ?)", amount, to_user_id);
     }
 
     // NOTE: Be a bit careful with state here. These functions can be re-entrant due to

@@ -49,7 +49,7 @@ class BagradaSocket {
 
     //process to connect to the bagrada server if it is not already connected, should check every minute
     
-    @safe nothrow private void connect() {
+    @system private void connect() nothrow {
     try {
         auto modifier = (scope HTTPClientRequest req) {
             req.method = HTTPMethod.GET;
@@ -58,12 +58,10 @@ class BagradaSocket {
         
         socket = connectWebSocketEx(URL(m_bagrada_ws_url), modifier);
         
-        // Start listening only when the socket is successfully connected
-        if (socket !is null && socket.connected) {
+        if (socket !is null) {
             log_message("Connected websocket to bagrada server");
-            m_listen_task = runTask({
-                listen(socket);
-            });
+        } else {
+            log_error_message("Failed to connect to bagrada server");
         }
     }
     catch (Exception e) {
@@ -135,60 +133,48 @@ class BagradaSocket {
         }
     }
 
-    @safe nothrow private void listen(WebSocket socket) {
-
+    @system private void listen(WebSocket socket) {
         try {
-            while (socket.connected && socket.waitForData()) {
-                auto messageString = socket.receiveText(false);
-                log_message("Bagrada server message: %s", messageString);
-                auto message = deserializeJson!BagradaMessage(messageString);
-                auto task = runTask({
-                    handleBagradaMessage(message);
-                });
-                task.join();
-            }
-
-            scope(exit) {
-                if (socket !is null && socket.connected) {
-                    socket.close();
-                }
-            }
-
-        }
-        catch (Exception e) {
-            log_error_message("Error listening to bagrada server: %s", e.msg);
-        }
-
-    }
-
-    @safe public void stayConnected() nothrow 
-    {
-        
-        try {
-            scope(exit) log_message("Login: ERROR, bagrada socket task exited!");
-
-            for (;;)
-            {
+            while (true) {
                 try {
-                    sleep(reconnect_timer);
-                    if (socket is null || !socket.connected) {
-                        connect();
-                    } else {
-                        send(BagradaMessage(BagradaMessageType.KEEP_ALIVE, "ping", 0, 0, 0));
-                    }
+                    if (!socket.connected) break;
+                    auto messageString = socket.receiveText(false);
+                    log_message("Bagrada server message: %s", messageString);
+                    auto message = deserializeJson!BagradaMessage(messageString);
+                    auto task = runTask({
+                        handleBagradaMessage(message);
+                    });
+                    task.join();
                 } catch (Exception e) {
-                    log_message("Error: ", e.msg);
+                    log_error_message("Error in listen loop: %s", e.msg);
+                    break;
                 }
-                
             }
         } catch (Exception e) {
+            log_error_message("Error in listen method: %s", e.msg);
+        }
+    }
+
+    @system public void stayConnected() {
+        while (true) {
             try {
-                log_message("Error: ", e.msg);
+                if (socket is null || !socket.connected) {
+                    connect();
+                    if (socket !is null) {
+                        listen(socket);
+                    }
+                } else {
+                    send(BagradaMessage(BagradaMessageType.KEEP_ALIVE, "ping", 0, 0, 0));
+                }
             } catch (Exception e) {
-                
+                log_error_message("Error in stayConnected: %s", e.msg);
+            }
+            try {
+                sleep(reconnect_timer);
+            } catch (Exception e) {
+                log_error_message("Error in sleep: %s", e.msg);
             }
         }
-        
     }
 
 

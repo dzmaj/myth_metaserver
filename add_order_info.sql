@@ -32,3 +32,23 @@ ADD COLUMN `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 ALTER TABLE `orders`
 MODIFY COLUMN `description` VARCHAR(255) NOT NULL DEFAULT '';
 
+ALTER TABLE `orders`
+DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+ALTER TABLE `orders`
+MODIFY COLUMN `name` VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
+MODIFY COLUMN `description` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+MODIFY COLUMN `password` VARCHAR(255) CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+CREATE TABLE authorities (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL UNIQUE
+);
+
+CREATE TABLE user_authorities (
+    user_id INT,
+    authority_id BIGINT,
+    PRIMARY KEY (user_id, authority_id),
+    FOREIGN KEY (user_id) REFERENCES metaserver_users(id),
+    FOREIGN KEY (authority_id) REFERENCES authorities(id)
+);

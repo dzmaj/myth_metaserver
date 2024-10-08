@@ -94,7 +94,18 @@ class LoginServer
         listenTCP(cast(ushort)m_config.login_port, &handle_login_connection, "0.0.0.0");
         m_bagrada_socket = new BagradaSocket(this);
         runTask({
-            m_bagrada_socket.stayConnected();
+            while (true) {
+                try {
+                    m_bagrada_socket.stayConnected();
+                } catch (Exception e) {
+                    log_error_message("BagradaSocket connection failed: %s", e.msg);
+                    try {
+                        sleep(5.seconds); // Wait before attempting to reconnect
+                    } catch (Exception sleepError) {
+                        log_error_message("Error in sleep: %s", sleepError.msg);
+                    }
+                }
+            }
         });
         // Finally, set up some maintainance tasks
         runTask(&cleanup);

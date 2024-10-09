@@ -1,6 +1,0 @@
-extends layout
-
-block content    
-    .row
-        .large-12.columns
-            h1 Bagrada

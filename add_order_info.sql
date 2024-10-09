@@ -46,9 +46,10 @@ CREATE TABLE authorities (
 );
 
 CREATE TABLE user_authorities (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
     user_id INT,
     authority_id BIGINT,
-    PRIMARY KEY (user_id, authority_id),
     FOREIGN KEY (user_id) REFERENCES metaserver_users(id),
-    FOREIGN KEY (authority_id) REFERENCES authorities(id)
+    FOREIGN KEY (authority_id) REFERENCES authorities(id),
+    UNIQUE KEY user_authority_unique (user_id, authority_id)
 );

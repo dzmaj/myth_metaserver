@@ -58,7 +58,6 @@ public class WWWServer
 
 	    auto router = new URLRouter;
     
-        router.get("/www/", &index);
         router.get("/www/account/", &account);
         router.get("/www/account/logout/", &account_logout);
         router.get("/www/account/discord_login_return/", &account_discord_login_return);
@@ -66,10 +65,6 @@ public class WWWServer
         router.get("/www/games/", &games);
         router.get("/www/games/:game_id/", &game);
 		router.get("/www/games/:game_id/download/", &game_download);
-
-		router.get("/www/users/", &users);
-        router.get("/www/users/:user_id/", &user);
-		router.get("/www/users/:user_id", &user);		// Metaserver uses this one, so always include it
 
         router.get("/www/tournaments/", &tournaments);			
         router.get("/www/tournaments/:tournament_short_name/", &tournament);
@@ -85,9 +80,6 @@ public class WWWServer
         file_server_settings.serverPathPrefix = "/www/recordings/";
         router.get("/www/recordings/*", serveStaticFiles(m_config.recordings_path, file_server_settings));
 
-		router.get("/www/metaserver/", &metaserver);
-			
-        router.get("/www/faq/", &faq);
 
         router.registerRestInterface(new RestApiImpl(m_data_store));
 	
@@ -207,17 +199,7 @@ public class WWWServer
 
 	// *************************************** MISC PAGES ************************************************
 
-    private void index(HTTPServerRequest req, HTTPServerResponse res)
-    {
-        auto global = get_global_info(req);
-        res.render!("index.dt", global);
-    }
 
-    private void faq(HTTPServerRequest req, HTTPServerResponse res)
-    {
-        auto global = get_global_info(req);
-        res.render!("faq.dt", global);
-    }
 
     private void games(HTTPServerRequest req, HTTPServerResponse res)
     {
@@ -261,41 +243,6 @@ public class WWWServer
 
         if (!game.recording_file_name.empty)
 			res.redirect("/www/recordings/" ~ game.recording_file_name);
-    }
-
-	private void users(HTTPServerRequest req, HTTPServerResponse res)
-    {
-		// No "list of users" page currently, so just redirect home
-        res.redirect("/www/");
-    }
-
-    private void user(HTTPServerRequest req, HTTPServerResponse res)
-    {
-        int user_id = req.params["user_id"].to!int();
-
-        auto global = get_global_info(req);
-        auto user = m_data_store.user(user_id);
-
-		// Basic game list pagination
-		// TODO: Centralize this logic somewhere
-        immutable int games_per_page = 30;
-        int games_current_page = max(1, req.query.get("page", "1").to!int());     // NB: 1-based
-        int games_count = 0;
-        auto games = m_data_store.games((games_current_page - 1) * games_per_page, games_per_page, games_count, user_id);
-        int games_page_count = (games_count + games_per_page - 1) / games_per_page;
-
-        res.render!("user.dt", global, user, games, games_current_page, games_page_count);
-    }
-
-	private void metaserver(HTTPServerRequest req, HTTPServerResponse res)
-    {
-        auto global = get_global_info(req);
-
-		// TODO: This is probably a good place to catch all sorts of fun exceptions and render a default page...
-		PublicServerStatus status;
-		bool online = query_metaserver_status(status);
-
-        res.render!("metaserver.dt", global, online, status);
     }
 
 

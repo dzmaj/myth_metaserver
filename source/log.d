@@ -63,6 +63,8 @@ public static this()
     try {
         s_error_log.writefln("%s: " ~ format, get_time_string(), args);
 	    s_error_log.flush();
+        s_log.writefln("%s: " ~ format, get_time_string(), args);
+	    s_log.flush();
     } catch(Exception e) {
         
     }

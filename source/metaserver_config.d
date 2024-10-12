@@ -37,14 +37,7 @@ public struct MetaserverConfig
     };
 
     // Rooms
-    @optional RoomConfig[] rooms = [
-        {-1, "", RoomType.unranked, false},
-        {-1, "", RoomType.unranked, true},
-        {-1, "", RoomType.ranked, true},
-        {-1, "", RoomType.ranked, true},
-        {-1, "", RoomType.tournament, true},
-        {-1, "", RoomType.tournament, true},
-    ];
+    @optional int[] active_room_ids = [];
 
     @optional int room_start_port = 6323; // NOTE: Could let the user customize this per room...
     @optional int maximum_users_per_room = 999;

@@ -69,6 +69,16 @@ public struct OrderInfo
     string description;
 }
 
+public struct RoomInfo
+{
+    int id;
+    string name;
+    int room_type;
+    bool requires_films;
+    int max_users;
+    string welcome_message;
+}
+
 interface DataStoreInterface
 {
     UserLoginReturn user_login_token(UserLoginParams params, string user_name, string password);
@@ -91,6 +101,7 @@ interface DataStoreInterface
     OrderInfo get_order_info(int order_id);
     long get_balance(int user_id);
     void transfer_credits(int from_user_id, int to_user_id, long amount);
+    RoomInfo[] get_room_infos(const(int)[] room_ids);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -208,6 +219,11 @@ class DataStoreNull : DataStoreInterface
     void transfer_credits(int from_user_id, int to_user_id, long amount)
     {
         // noop
+    }
+
+    RoomInfo[] get_room_infos(const(int)[] room_ids)
+    {
+        return [];
     }
 }
 
@@ -664,6 +680,29 @@ class DataStoreMysql : DataStoreInterface
         // Perform the transfer
         conn.execute("UPDATE wallets SET balance = balance - ? WHERE id = (SELECT wallet_id FROM metaserver_users WHERE id = ?)", amount, from_user_id);
         conn.execute("UPDATE wallets SET balance = balance + ? WHERE id = (SELECT wallet_id FROM metaserver_users WHERE id = ?)", amount, to_user_id);
+    }
+
+    RoomInfo[] get_room_infos(const(int)[] room_ids)
+    {
+        RoomInfo[] room_infos;
+        auto conn = m_db.lockConnection();
+
+        foreach (room_id; room_ids) {
+            conn.execute("SELECT id, name, room_type, requires_films, max_users, welcome_message FROM room_info WHERE id IN (?) ORDER BY order_id", room_id, (MySQLRow row) {
+            room_infos ~= RoomInfo(
+                row.id.get!int,
+                row.name.get!string,
+                row.room_type.get!int,
+                row.requires_films.get!bool,
+                row.max_users.get!int,
+                row.welcome_message.get!string
+            );
+        });
+        }
+
+
+
+        return room_infos;
     }
 
     // NOTE: Be a bit careful with state here. These functions can be re-entrant due to

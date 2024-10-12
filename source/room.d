@@ -80,13 +80,14 @@ static assert (metaserver_game_aux_data.sizeof == 32);
 class Room
 {
     public this(LoginServer login_server, RoomServer room_server, string room_name,
-                room_info info, int maximum_clients)
+                room_info info, int maximum_clients, string welcome_message)
     {
         m_login_server = login_server;
         m_room_server = room_server;
         m_room_info = info;
         m_room_name = room_name;
         m_maximum_clients = maximum_clients;
+        m_welcome_message = welcome_message;
         m_rank_client = new RankClient(login_server.config);
         m_game_reporter_client = new GameReporterClient(login_server.config);
 
@@ -224,6 +225,7 @@ class Room
         // does and this is the last thing we do *after* already adding them to our connected list.        
         auto message = m_login_server.data_store.get_join_room_message(connection.client.guest);
         send_blue_message(connection, message);
+        send_blue_message(connection, m_welcome_message);
     }
 
     public void remove_connection(RoomConnection connection)
@@ -618,6 +620,7 @@ class Room
         send_blue_message(caller, ".mute/.unmute : mutes/unmutes a user");
         send_blue_message(caller, ".block/.unblock : blocks/unblocks a user from your hosted games");
         send_blue_message(caller, ".mutelist/.blocklist : displays your list of muted/blocked users");
+        send_blue_message(caller, ".balnce/.transfer : view your balance or transfer MythCoin to another user");
         if (m_login_server.data_store.get_user_admin_level(caller.client.user_id) > 0) {
             send_blue_message(caller, "Admin commands:");
             send_blue_message(caller, ".info : displays user info");
@@ -1017,7 +1020,7 @@ class Room
     private RoomServer m_room_server;
     private RankClient m_rank_client;
     private GameReporterClient m_game_reporter_client;
-    
+    private string m_welcome_message;
     private string m_room_name;
     private room_info m_room_info;
     private immutable(int) m_maximum_clients;

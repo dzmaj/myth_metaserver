@@ -90,8 +90,6 @@ public class RoomServer
     public this(LoginServer login_server, ref const(MetaserverConfig) config)
     {
         m_login_server = login_server;
-
-
         m_address_ipv4 = resolve_address_to_ipv4(config.server_address, true, m_address_string_ipv4);
         
         // Set up host proxy
@@ -99,27 +97,27 @@ public class RoomServer
                                      cast(ushort)config.host_proxy_pool_start,
                                      cast(ushort)config.host_proxy_pool_count);
 
-        int lastRoomId = -1;
-        foreach (i, ref r; config.rooms)
+        // Fetch room info from the database
+        auto room_infos = m_login_server.data_store.get_room_infos(config.active_room_ids);
+
+        foreach (ri; room_infos)
         {
+            log_message("Room ID: %d, Name: %s, Room Type: %d, Requires Films: %s, Max Users: %d, Welcome Message: %s", ri.id, ri.name, ri.room_type, ri.requires_films, ri.max_users, ri.welcome_message);
             room_info info;
-            info.room_id = cast(short)(r.room_id >= 0 ? r.room_id : (lastRoomId + 1));
-            info.room_type = r.type;
-            info.host = 0;          // 0 means same as metaserver address
-            info.port = cast(ushort)(config.room_start_port + i);
+            info.room_id = cast(short)ri.id;
+            info.room_type = cast(RoomType)ri.room_type;
+            info.host = 0;  // 0 means same as metaserver address
+            info.port = cast(ushort)(config.room_start_port + m_rooms.length);
             info.player_count = 0;
             info.game_count = 0;
             info.room_flags = RoomFlags._supports_recording_stream_flag |
-                (r.requires_films ? RoomFlags._requires_recording_stream_flag : 0);
+                (ri.requires_films ? RoomFlags._requires_recording_stream_flag : 0);
 
-            auto room_name = r.name.empty() ? "Room " ~ to!string(info.room_id) : r.name;
-            m_rooms ~= new Room(m_login_server, this, room_name, info, config.maximum_users_per_room);
-            lastRoomId = info.room_id;
+            m_rooms ~= new Room(m_login_server, this, ri.name, info, ri.max_users, ri.welcome_message);
         }
 
         m_room_info = new room_info[m_rooms.length];
         set_room_data_dirty();
-
 
         runTask(&send_client_keep_alive);
     }
@@ -128,7 +126,7 @@ public class RoomServer
     {
         try {
             for (;;)
-        {
+            {
             send_packet_to_all_clients(packet_type._keepalive_packet, []);
             sleep(client_keep_alive_period);
         }
@@ -223,7 +221,7 @@ public class RoomServer
     private Room[] m_rooms;
     private room_info[] m_room_info;
     
-    public Room createRoom(string roomName, RoomType roomType, bool requiresFilms, int maxUsers, int roomId = -1)
+    public Room createRoom(string roomName, RoomType roomType, bool requiresFilms, int maxUsers, int roomId = -1, string welcomeMessage = "")
     {
         int newRoomId = roomId != -1 ? roomId : (m_rooms.length > 0 ? m_rooms[$-1].room_id + 1 : 0);
         room_info info;
@@ -236,7 +234,7 @@ public class RoomServer
         info.room_flags = RoomFlags._supports_recording_stream_flag |
             (requiresFilms ? RoomFlags._requires_recording_stream_flag : 0);
 
-        auto room = new Room(m_login_server, this, roomName, info, maxUsers);
+        auto room = new Room(m_login_server, this, roomName, info, maxUsers, welcomeMessage);
         log_message("Created room %d", room.room_id);
         m_rooms ~= room;
         m_room_info ~= info;

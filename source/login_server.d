@@ -589,8 +589,9 @@ class LoginServer
         bool requiresFilms = json["requiresFilms"].get!bool;
         int maxUsers = json["maxUsers"].get!int;
         int roomId = "roomId" in json ? json["roomId"].get!int : -1; // Check if roomId exists
+        string welcomeMessage = "welcomeMessage" in json ? json["welcomeMessage"].get!string : "";
 
-        auto room = m_room_server.createRoom(roomName, roomType, requiresFilms, maxUsers, roomId);
+        auto room = m_room_server.createRoom(roomName, roomType, requiresFilms, maxUsers, roomId, welcomeMessage);
         res.writeBody(`{"status": "success", "roomId": ` ~ to!string(room.room_id) ~ `}`);
     }
 

@@ -390,12 +390,12 @@ class DataStoreMysql : DataStoreInterface
         auto games_inserter = inserter(db, "metaserver_games",
             "room_type", "team_count", "player_count", "game_name", "map_name", "scoring", "difficulty", "time_limit", "planning_time_limit",
             "cooperative", "allow_teams", "allow_unit_trading", "allow_veterans", "allow_alliances", "overhead_map", "deathmatch", "vtfl", "anti_clump",
-            "start_datetime", "end_datetime", "ended_code", "duration", "recording_file_name");
+            "start_datetime", "end_datetime", "ended_code", "duration", "recording_file_name", "room_id");
 
         games_inserter.row(
             game.room_type, game.team_count, game.player_count, game.game_name, game.map_name, game.scoring, game.difficulty, game.time_limit, game.planning_time_limit,
             game.cooperative, game.allow_teams, game.allow_unit_trading, game.allow_veterans, game.allow_alliances, game.overhead_map, game.deathmatch, game.vtfl, game.anti_clump,
-            game.start_datetime, game.end_datetime, game.ended_code, game.duration, game.recording_file_name);
+            game.start_datetime, game.end_datetime, game.ended_code, game.duration, game.recording_file_name, game.room_id);
         games_inserter.flush();
         if (db.affected() < 1)
         {

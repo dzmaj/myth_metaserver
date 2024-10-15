@@ -58,8 +58,9 @@ class BagradaSocket {
         
         socket = connectWebSocketEx(URL(m_bagrada_ws_url), modifier);
         
-        if (socket !is null) {
+        if (socket !is null && socket.connected) {
             log_message("Connected websocket to bagrada server");
+            
         } else {
             log_error_message("Failed to connect to bagrada server");
         }
@@ -160,7 +161,7 @@ class BagradaSocket {
             try {
                 if (socket is null || !socket.connected) {
                     connect();
-                    if (socket !is null) {
+                    if (socket !is null && socket.connected) {
                         listen(socket);
                     }
                 } else {

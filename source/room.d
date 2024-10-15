@@ -104,7 +104,8 @@ class Room
         m_dot_commands["blocklist"] = &dot_blocklist;
         m_dot_commands["transfer"] = &dot_transfer;
         m_dot_commands["balance"] = &dot_balance;
-
+        m_dot_commands["hexcolor"] = &dot_hexcolor;
+        m_dot_commands["chatprefix"] = &dot_chatprefix;
         m_admin_dot_commands["info"] = &dot_info;
         m_admin_dot_commands["kick"] = &dot_kick;
         m_admin_dot_commands["ban"] = &dot_ban;
@@ -727,6 +728,25 @@ class Room
 
         dot_kick(caller, target, reason);
     }
+
+    private void dot_hexcolor(RoomConnection caller, Nullable!RoomConnection target, string params)
+    {
+        int pInt = rgb_color_to_int(caller.client.primary_color);
+        int sInt = rgb_color_to_int(caller.client.secondary_color);
+        auto npColor = int_to_rgb_color(pInt, true);
+        auto nsColor = int_to_rgb_color(sInt, true);
+
+        caller.client.set_primary_color(npColor);
+        caller.client.set_secondary_color(nsColor);
+        send_blue_message(caller, "Hex color!");
+    }
+
+    private void dot_chatprefix(RoomConnection caller, Nullable!RoomConnection target, string params)
+    {
+        caller.set_chat_prefix(params);
+        send_blue_message(caller, "Chat prefix set to: " ~ caller.chat_prefix() ~ "this");
+    }
+
 
     private void dot_message(RoomConnection caller, Nullable!RoomConnection target, string params)
     {

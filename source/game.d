@@ -258,10 +258,11 @@ public struct bungie_net_game_standings
 
 public class Game
 {
-	public this(int room_type, int host_user_id, int host_address_ipv4, ushort host_port, in ubyte[] game_data)
+	public this(int room_type, int room_id, int host_user_id, int host_address_ipv4, ushort host_port, in ubyte[] game_data)
 	{
 		m_game_result = new GameResult();
 		m_game_result.room_type = room_type;
+        m_game_result.room_id = room_id;
 
 		m_host_user_id = host_user_id;
 		m_host_address_ipv4 = host_address_ipv4;
@@ -337,6 +338,8 @@ public class Game
 		//m_game_result.host_observer       = 0 != (desc.parameters.option_flags & (1 << _game_option_server_is_observer_bit));
 		m_game_result.vtfl                = 0 != (desc.parameters.option_flags & (1 << _game_option_uses_tfl_bit));
 		m_game_result.anti_clump          = 0 != (desc.parameters.option_flags & (1 << _game_option_uses_anticlump_bit));
+        int option_flags = desc.parameters.option_flags;
+        log_message("Option flags: %d", option_flags);
 
 
         // this.sendGameStartToAPI();

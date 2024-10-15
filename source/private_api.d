@@ -31,12 +31,13 @@ public int rgb_color_to_int(in rgb_color c)
         ((cast(int)c.blue  >> 8) & 0x0000FF);
 }
 
-public rgb_color int_to_rgb_color(int h)
+public rgb_color int_to_rgb_color(int h, bool coopColor)
 {
     rgb_color c = {
         cast(ushort)((h & 0xFF0000) >> 8),
         cast(ushort)((h & 0x00FF00)     ),
-        cast(ushort)((h & 0x0000FF) << 8)
+        cast(ushort)((h & 0x0000FF) << 8),
+        cast(ushort)(coopColor ? 0x0D : 0x00)
     };
     return c;
 }
@@ -115,6 +116,7 @@ public class GameResult
     int room_type; // 0 = Unranked, 1 = Ranked, 2 = Tournament
     int team_count; // Exclused spectator team if present
     int player_count;
+    int room_id;
 
     string game_name;
     string map_name;

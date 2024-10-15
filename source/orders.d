@@ -33,8 +33,8 @@ class OrderMember {
             cast(byte)player_data.coat_of_arms_bitmap_index,
             cast(byte)-1,
             cast(short)0,
-            int_to_rgb_color(player_data.primary_color),
-            int_to_rgb_color(player_data.secondary_color),
+            int_to_rgb_color(player_data.primary_color, false),
+            int_to_rgb_color(player_data.secondary_color, false),
             cast(short)player_data.order_id,
             cast(short)player_data.game_version,
             cast(short)player_data.build_number

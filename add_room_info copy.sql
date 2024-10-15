@@ -13,3 +13,7 @@ CREATE TABLE room_info (
     last_ownership_change_at DATETIME,
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE SET NULL
 );
+
+ALTER TABLE metaserver_games
+ADD COLUMN room_id INT,
+ADD CONSTRAINT fk_room_id FOREIGN KEY (room_id) REFERENCES room_info(id);

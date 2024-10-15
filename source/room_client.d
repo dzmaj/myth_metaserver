@@ -153,8 +153,8 @@ class RoomClient : Client
 
         // Setup metaserver player data structure
         m_metaserver_player_data.coat_of_arms_bitmap_index = cast(byte)info.player_data.coat_of_arms_bitmap_index;
-        m_metaserver_player_data.primary_color   = int_to_rgb_color(info.player_data.primary_color);
-        m_metaserver_player_data.secondary_color = int_to_rgb_color(info.player_data.secondary_color);
+        m_metaserver_player_data.primary_color   = int_to_rgb_color(info.player_data.primary_color, false);
+        m_metaserver_player_data.secondary_color = int_to_rgb_color(info.player_data.secondary_color, false);
 
         m_metaserver_player_data.game_version = sendGameVersionZero ? 0 : cast(short)info.player_data.game_version;
         m_metaserver_player_data.build_number = cast(short)info.player_data.build_number;
@@ -213,6 +213,13 @@ class RoomClient : Client
     @property public pure byte coat_of_arms_bitmap_index() const { return m_metaserver_player_data.coat_of_arms_bitmap_index; }
     @property public pure short order_id() const { return m_metaserver_player_data.order_index; }
     @property public pure short build_number() const { return m_metaserver_player_data.build_number; }
+
+    public nothrow void set_primary_color(rgb_color color) {
+        m_metaserver_player_data.primary_color = color;
+    }
+    public nothrow void set_secondary_color(rgb_color color) { 
+        m_metaserver_player_data.secondary_color = color;
+    }
 
     // Client info (mostly immutable, few minor exceptions like player state)
     private metaserver_player_data m_metaserver_player_data;

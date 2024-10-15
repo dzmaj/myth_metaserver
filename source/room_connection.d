@@ -114,6 +114,7 @@ final class RoomConnection : Connection
         m_client_deaf = false;
         m_game_reporter_client = room.game_reporter_client();
         m_rank_client = room.rank_client();
+        m_chat_prefix = "";
     }
 
     protected override void run_internal(MythSocket socket)
@@ -436,6 +437,13 @@ final class RoomConnection : Connection
             player_name = m_client.player_data.nick_name;
             user_id = m_client.user_id;
             chat_packet.player_id = user_id;
+            chat_packet.length += cast(ushort) m_chat_prefix.length;
+
+            // Prepend the chat prefix to the message
+            if (m_chat_prefix.length > 0)
+            {
+                message = m_chat_prefix ~ message;
+            }
 
             if (broadcast)
             {
@@ -587,7 +595,7 @@ final class RoomConnection : Connection
                 }
             }
 
-            m_hosted_game = new Game(m_room.room_type, m_client.player_data.user_id, address_ipv4, port, game_data);
+            m_hosted_game = new Game(m_room.room_type, m_room.room_id(), m_client.player_data.user_id, address_ipv4, port, game_data);
             m_room.add_game(m_hosted_game);
         }
     }
@@ -853,8 +861,8 @@ final class RoomConnection : Connection
             login = to!string(user_id);
             nick_name = basic_info.nick_name;
             
-            info.primary_color = int_to_rgb_color(basic_info.primary_color);
-            info.secondary_color = int_to_rgb_color(basic_info.secondary_color);
+            info.primary_color = int_to_rgb_color(basic_info.primary_color, false);
+            info.secondary_color = int_to_rgb_color(basic_info.secondary_color, false);
             info.icon_index = cast(short)basic_info.coat_of_arms_bitmap_index;
             info.administrator_flag = user_id < 12;
             info.bungie_employee_flag = user_id < 12;
@@ -1103,6 +1111,10 @@ final class RoomConnection : Connection
     */
 
     private bool m_client_deaf;
+
+    private string m_chat_prefix;
+    public nothrow string chat_prefix() const { return m_chat_prefix; }
+    public nothrow void set_chat_prefix(string prefix) { m_chat_prefix = prefix; }
 
     // A task responsible for sending data to this client
     // This allows us to control outgoing queue sizes and avoid ever blocking sender fibers
